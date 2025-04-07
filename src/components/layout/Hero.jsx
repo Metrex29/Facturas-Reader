@@ -2,6 +2,7 @@ import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { ArrowRightIcon } from '@heroicons/react/20/solid';
 import { ResponsiveBump } from '@nivo/bump';
+import { Link } from 'react-router-dom';
 
 // Datos de ejemplo para el gráfico
 const data = [
@@ -29,9 +30,7 @@ const data = [
 
 export default function Hero() {
   return (
-    <section
-      className="flex w-full items-start justify-center bg-[url('https://tailframes.com/images/squares-bg.webp')] bg-cover bg-center bg-no-repeat"
-    >
+    <section className="flex w-full items-start justify-center bg-[url('https://tailframes.com/images/squares-bg.webp')] bg-cover bg-center bg-no-repeat">
       <div className="flex max-w-screen-2xl grow flex-col items-start justify-start gap-12 px-3 py-12 md:pt-24 lg:px-0 xl:flex-row">
         <div className="sm:pl-8 lg:pl-16 xl:pl-32 mb-0 flex flex-1 flex-col items-start gap-12 px-0 xl:mb-24">
           <Badge size="large" variant="secondary">
@@ -46,12 +45,20 @@ export default function Hero() {
             </p>
           </div>
           <div className="flex gap-4">
-            <Button size="large">
-              Comenzar
-            </Button>
-            <Button size="large" variant="text" endAdornment={<ArrowRightIcon className="size-6 stroke-inherit" />}>
-              Ver más
-            </Button>
+            <Link to="/login">
+              <Button size="large">
+                Iniciar Sesión
+              </Button>
+            </Link>
+            <Link to="/signup">
+              <Button 
+                size="large" 
+                variant="text"
+                endAdornment={<ArrowRightIcon className="size-6 stroke-inherit" />}
+              >
+                Registrarse
+              </Button>
+            </Link>
           </div>
         </div>
         <div className="relative flex flex-1 flex-col h-[400px] lg:px-16">
