@@ -69,10 +69,14 @@ const SignUp = () => {
     <div className="min-h-screen flex items-center justify-center -mt-20">
       <div className="h-[500px] flex gap-16">
         <motion.div
-          initial={{ x: '-100%', opacity: 0 }}
+          initial={{ x: '100%', opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          exit={{ x: '100%', opacity: 0 }}
-          transition={{ duration: 0.5 }}
+          exit={{ x: '-100%', opacity: 0 }}
+          transition={{ 
+            type: "tween",
+            duration: 0.4,
+            ease: "easeInOut"
+          }}
           className="flex-1 flex items-center justify-center"
         >
           <div className="rounded-lg bg-indigo-100 hidden lg:flex items-center justify-center" style={{ height: '500px', width: '500px' }}>
@@ -83,10 +87,14 @@ const SignUp = () => {
           </div>
         </motion.div>
         <motion.div
-          initial={{ x: '100%', opacity: 0 }}
+          initial={{ x: '-100%', opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          exit={{ x: '-100%', opacity: 0 }}
-          transition={{ duration: 0.5 }}
+          exit={{ x: '100%', opacity: 0 }}
+          transition={{ 
+            type: "tween",
+            duration: 0.4,
+            ease: "easeInOut"
+          }}
           className="flex-1 flex items-center justify-center"
         >
           <div className="rounded-lg sm:border-2 px-4 lg:px-24 py-16 lg:max-w-xl sm:max-w-md w-full text-center">
@@ -147,9 +155,12 @@ const SignUp = () => {
               <div className="text-center mt-4">
                 <span className="text-sm text-gray-600">
                   ¿Ya tienes una cuenta?{' '}
-                  <a href="/login" className="text-purple-600 hover:text-purple-700 font-semibold">
+                  <button 
+                    onClick={() => navigate('/login')}
+                    className="text-purple-600 hover:text-purple-700 font-semibold"
+                  >
                     Inicia sesión aquí
-                  </a>
+                  </button>
                 </span>
               </div>
               <p className="mt-6 text-xs text-gray-600 text-center">

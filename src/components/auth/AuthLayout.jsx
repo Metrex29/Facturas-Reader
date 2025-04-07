@@ -5,8 +5,10 @@ const AuthLayout = () => {
   const location = useLocation();
   
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <Outlet key={location.pathname} />
+    <AnimatePresence mode="wait">
+      <div key={location.pathname} className="relative w-full overflow-hidden">
+        <Outlet />
+      </div>
     </AnimatePresence>
   );
 };

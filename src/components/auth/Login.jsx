@@ -55,10 +55,14 @@ const Login = () => {
     <div className="min-h-screen flex items-center justify-center -mt-20">
       <div className="h-[500px] flex gap-16">
         <motion.div
-          initial={{ x: '-100%', opacity: 0 }}
+          initial={{ x: '100%', opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          exit={{ x: '100%', opacity: 0 }}
-          transition={{ duration: 0.5 }}
+          exit={{ x: '-100%', opacity: 0 }}
+          transition={{ 
+            type: "tween",
+            duration: 0.4,
+            ease: "easeInOut"
+          }}
           className="flex-1 flex items-center justify-center"
         >
           <div className="rounded-lg sm:border-2 px-4 lg:px-24 py-16 lg:max-w-xl sm:max-w-md w-full text-center">
@@ -111,29 +115,26 @@ const Login = () => {
               <div className="text-center mt-4">
                 <span className="text-sm text-gray-600">
                   ¿No tienes cuenta?{' '}
-                  <a href="/signup" className="text-purple-600 hover:text-purple-700 font-semibold">
+                  <button 
+                    onClick={() => navigate('/signup')}
+                    className="text-purple-600 hover:text-purple-700 font-semibold"
+                  >
                     Regístrate aquí
-                  </a>
+                  </button>
                 </span>
               </div>
-              <p className="mt-6 text-xs text-gray-600 text-center">
-                I agree to abide by templatana's
-                <a href="#" className="border-b border-gray-500 border-dotted ml-1">
-                  Terms of Service
-                </a>
-                {' '}and its{' '}
-                <a href="#" className="border-b border-gray-500 border-dotted">
-                  Privacy Policy
-                </a>
-              </p>
             </form>
           </div>
         </motion.div>
         <motion.div
-          initial={{ x: '100%', opacity: 0 }}
+          initial={{ x: '-100%', opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          exit={{ x: '-100%', opacity: 0 }}
-          transition={{ duration: 0.5 }}
+          exit={{ x: '100%', opacity: 0 }}
+          transition={{ 
+            type: "tween",
+            duration: 0.4,
+            ease: "easeInOut"
+          }}
           className="flex-1 flex items-center justify-center"
         >
           <div className="rounded-lg bg-indigo-100 hidden lg:flex items-center justify-center" style={{ height: '500px', width: '500px' }}>

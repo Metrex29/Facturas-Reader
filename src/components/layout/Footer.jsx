@@ -1,7 +1,7 @@
 export default function Footer() {
   return (
-    <footer className="bg-white">
-      <div className="mx-auto max-w-7xl px-6 py-12 md:flex md:items-center md:justify-between lg:px-8">
+    <footer className="bg-white fixed bottom-0 w-full">
+      <div className="mx-auto max-w-7xl px-4 py-2 md:flex md:items-center md:justify-between lg:px-6">
         <div className="flex justify-center space-x-6">
           <a
             href="https://github.com/Metrex29"
@@ -26,7 +26,7 @@ export default function Footer() {
             Email
           </a>
         </div>
-        <p className="mt-8 text-center text-xs leading-5 text-gray-500 md:mt-0">
+        <p className="mt-2 text-center text-xs leading-5 text-gray-500 md:mt-0">
           &copy; {new Date().getFullYear()} Facturas IA. Todos los derechos reservados.
         </p>
       </div>
