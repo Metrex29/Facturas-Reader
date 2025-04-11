@@ -5,10 +5,12 @@ import Hero from "./components/layout/Hero";
 import Footer from "./components/layout/Footer";
 import Login from "./components/auth/Login";
 import SignUp from "./components/auth/SignUp";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import "./styles/App.css";
 import { supabase } from './lib/supabase';
 import { useEffect } from 'react';
 import AuthLayout from './components/auth/AuthLayout';
+import Dashboard from './components/dashboard/Dashboard';
 
 export default function App() {
   useEffect(() => {
@@ -35,7 +37,15 @@ export default function App() {
               <Route element={<AuthLayout />}>
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<SignUp />} />
-              </Route>
+                <Route 
+                path="/dashboard" 
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } 
+              />
+            </Route>
             </Routes>
           </main>
           <Footer />
