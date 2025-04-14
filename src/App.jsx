@@ -3,41 +3,25 @@ import { AuthProvider } from './context/AuthContext';
 import Header from "./components/layout/Header";
 import Hero from "./components/layout/Hero";
 import Footer from "./components/layout/Footer";
+import Dashboard from "./components/dashboard/Dashboard";
 import Login from "./components/auth/Login";
-import SignUp from "./components/auth/SignUp";
+import Register from "./components/auth/Register";
+import SignUp from "./components/auth/SignUp"; // Added import for SignUp
 import ProtectedRoute from "./components/auth/ProtectedRoute";
-import "./styles/App.css";
-import { supabase } from './lib/supabase';
-import { useEffect } from 'react';
-import AuthLayout from './components/auth/AuthLayout';
-import Dashboard from './components/dashboard/Dashboard';
 
-export default function App() {
-  useEffect(() => {
-    async function testConnection() {
-      const { data, error } = await supabase.from('users').select('*').limit(1);
-      if (error) {
-        console.error('Supabase connection error:', error);
-      } else {
-        console.log('Supabase connection successful:', data);
-      }
-    }
-    
-    testConnection();
-  }, []);
-
+function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <div className="min-h-screen bg-white">
+    <AuthProvider>
+      <BrowserRouter>
+        <div className="flex flex-col min-h-screen">
           <Header />
-          <main>
+          <main className="flex-grow">
             <Routes>
               <Route path="/" element={<Hero />} />
-              <Route element={<AuthLayout />}>
-                <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<SignUp />} />
-                <Route 
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/signup" element={<SignUp />} />
+              <Route 
                 path="/dashboard" 
                 element={
                   <ProtectedRoute>
@@ -45,12 +29,13 @@ export default function App() {
                   </ProtectedRoute>
                 } 
               />
-            </Route>
             </Routes>
           </main>
           <Footer />
         </div>
-      </AuthProvider>
-    </BrowserRouter>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
+
+export default App;

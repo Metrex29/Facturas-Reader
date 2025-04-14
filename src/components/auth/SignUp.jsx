@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 
 const SignUp = () => {
   const navigate = useNavigate();
-  const { signup } = useAuth();
+  const { signUp } = useAuth(); // Changed from signup to signUp to match your auth context
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -17,7 +17,6 @@ const SignUp = () => {
   const [loading, setLoading] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
 
-  // Add the missing handleChange function
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -51,7 +50,7 @@ const SignUp = () => {
     setLoading(true);
 
     try {
-      await signup(formData.email, formData.password);
+      await signUp({ email: formData.email, password: formData.password, nombre: formData.email.split('@')[0] }); // Updated to match your auth context format
       navigate('/login', { 
         state: { message: 'Por favor, verifica tu correo electrónico para continuar' }
       });
@@ -163,16 +162,6 @@ const SignUp = () => {
                   </button>
                 </span>
               </div>
-              <p className="mt-6 text-xs text-gray-600 text-center">
-                I agree to abide by templatana's
-                <a href="#" className="border-b border-gray-500 border-dotted ml-1">
-                  Terms of Service
-                </a>
-                {' '}and its{' '}
-                <a href="#" className="border-b border-gray-500 border-dotted">
-                  Privacy Policy
-                </a>
-              </p>
             </form>
           </div>
         </motion.div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../lib/supabase';
+import { postgres } from '../../lib/postgres';
 import UploadInvoice from './UploadInvoice';
 import ViewInvoices from './ViewInvoices';
 
@@ -16,14 +16,14 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const { data, error } = await supabase
-          .from('user_profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-
-        if (error) throw error;
-        setUserData(data);
+        // Usando PostgreSQL en lugar de Supabase
+        const result = await postgres.from('user_profiles')
+          .select()
+          .eq('user_id', user.id);
+        
+        if (result.rows && result.rows.length > 0) {
+          setUserData(result.rows[0]);
+        }
       } catch (error) {
         console.error('Error fetching user data:', error);
       } finally {

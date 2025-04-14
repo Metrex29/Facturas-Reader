@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { postgres } from '../../lib/postgres';
 import { useAuth } from '../../context/AuthContext';
 
 const ViewInvoices = ({ onClose }) => {
@@ -11,16 +11,15 @@ const ViewInvoices = ({ onClose }) => {
   useEffect(() => {
     const fetchInvoices = async () => {
       try {
-        const { data, error } = await supabase
-          .from('invoices')
-          .select('*')
+        const result = await postgres.from('invoices')
+          .select()
           .eq('user_id', user.id)
           .order('date', { ascending: false });
-
-        if (error) throw error;
-        setInvoices(data);
+        
+        setInvoices(result.rows || []);
       } catch (err) {
-        setError('Error al cargar las facturas: ' + err.message);
+        console.error('Error fetching invoices:', err);
+        setError('Error al cargar las facturas');
       } finally {
         setLoading(false);
       }
@@ -32,19 +31,13 @@ const ViewInvoices = ({ onClose }) => {
   const handleViewPDF = async (fileUrl) => {
     try {
       console.log('Attempting to view file:', fileUrl);
-
-      // Try to get a public URL first
-      const { data, error } = await supabase.storage
-        .from('invoices')
-        .getPublicUrl(fileUrl);
-
-      if (error) {
-        console.error('Public URL error:', error);
-        throw error;
-      }
-
-      console.log('Generated public URL:', data?.publicUrl);
-      window.open(data?.publicUrl, '_blank');
+      
+      // Para PostgreSQL local, simplemente mostramos la ruta del archivo
+      // En una implementación real, necesitarías servir estos archivos desde un servidor
+      alert(`Esta función está en desarrollo. Ruta del archivo: ${fileUrl}`);
+      
+      // Alternativa: si los archivos están en una carpeta pública
+      // window.open(`/uploads/${fileUrl}`, '_blank');
     } catch (err) {
       console.error('View error:', err);
       console.error('File URL attempting to view:', fileUrl);

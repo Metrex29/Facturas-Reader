@@ -5,14 +5,11 @@ import { Button } from '../ui/Button';
 import authImage from '../../assets/images/auth_image.svg'
 import { motion } from 'framer-motion';
 
-
-
 const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const message = location.state?.message;
-  const { login } = useAuth();
-
+  const { signIn } = useAuth(); // Cambiado de login a signIn para coincidir con auth.js
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -42,7 +39,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await login(formData.email, formData.password);
+      await signIn({ email: formData.email, password: formData.password }); // Cambiado para usar signIn con el formato correcto
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);
@@ -88,7 +85,6 @@ const Login = () => {
                   onChange={handleChange}
                   className="border-2 border-gray-100 focus:outline-none bg-gray-100 block w-full py-2 px-4 rounded-lg focus:border-gray-700"
                   placeholder="tuCorreo@ejemplo.com"
-                  
                   required
                 />
               </div>

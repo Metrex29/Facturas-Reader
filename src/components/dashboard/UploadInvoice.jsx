@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { supabase } from '../../lib/supabase';
+import { postgres, query } from '../../lib/postgres';
 import { useAuth } from '../../context/AuthContext';
+import { v4 as uuidv4 } from 'uuid';
 
 const UploadInvoice = ({ onClose }) => {
   const { user } = useAuth();
@@ -23,25 +24,18 @@ const UploadInvoice = ({ onClose }) => {
     if (!file) return;
     setLoading(true);
     try {
+      // Por ahora, solo simularemos la URL del archivo
+      // En una implementación real, subirías el archivo a un servicio de almacenamiento
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `${user.id}/${fileName}`;
 
       console.log('Starting upload process for user:', user.id);
 
-      // Upload file to storage
-      const { error: uploadError, data: uploadData } = await supabase.storage
-        .from('invoices')
-        .upload(filePath, file);
+      // Simulación de subida de archivo
+      console.log('File would be uploaded to:', filePath);
 
-      if (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw uploadError;
-      }
-
-      console.log('File uploaded successfully:', filePath);
-
-      // Create invoice record in database
+      // Crear registro de factura en la base de datos
       const invoiceData = {
         user_id: user.id,
         file_url: filePath,
@@ -52,17 +46,10 @@ const UploadInvoice = ({ onClose }) => {
       
       console.log('Creating invoice record:', invoiceData);
       
-      const { error: dbError, data: newInvoice } = await supabase
-        .from('invoices')
-        .insert(invoiceData)
-        .select();
+      // Insertar en PostgreSQL
+      const result = await postgres.from('invoices').insert(invoiceData).select();
 
-      if (dbError) {
-        console.error('Database error:', dbError);
-        throw dbError;
-      }
-
-      console.log('Invoice record created:', newInvoice);
+      console.log('Invoice record created:', result.rows[0]);
       onClose();
     } catch (err) {
       console.error('Full error details:', err);
@@ -72,6 +59,7 @@ const UploadInvoice = ({ onClose }) => {
     }
   };
 
+  // El resto del componente permanece igual
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-lg p-6 max-w-md w-full">

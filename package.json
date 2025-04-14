@@ -16,9 +16,11 @@
     "@supabase/supabase-js": "^2.49.4",
     "@tailwindcss/postcss": "^4.0.17",
     "framer-motion": "^12.6.3",
+    "pg": "^8.14.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-router-dom": "^7.4.1"
+    "react-router-dom": "^7.4.1",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^8.56.0",

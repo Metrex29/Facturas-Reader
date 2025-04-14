@@ -1,91 +1,80 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
-import { authService } from '../services/auth/authService';
+import { auth } from '../lib/auth';
 
 const AuthContext = createContext({});
 
+// En tu AuthContext.jsx, añade un alias para signIn
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
+    // Simulación de escucha de cambios en la autenticación
+    const checkAuth = () => {
+      // En una implementación real, verificarías si el usuario sigue autenticado
+    };
 
-    return () => subscription.unsubscribe();
+    const interval = setInterval(checkAuth, 10000);
+    return () => clearInterval(interval);
   }, []);
-
-  const login = async (email, password) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const { data } = await authService.signIn({ email, password }); // Pasar objeto
-      setUser(data.user);
-      return data;
-    } catch (error) {
-      setError(error.message);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const logout = async () => {
-    try {
-      setLoading(true);
-      await authService.signOut();
-      setUser(null);
-    } catch (error) {
-      setError(error.message);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signup = async (email, password) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const { data } = await authService.signUp(email, password);
-      // No establecemos el usuario aquí porque necesita confirmar email
-      return data;
-    } catch (error) {
-      setError(error.message);
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const value = {
     user,
     loading,
     error,
-    login,
-    signup,
-    logout,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    signUp: async (data) => {
+      try {
+        setLoading(true);
+        const { error, data: userData } = await auth.signUp(data);
+        if (error) throw error;
+        setUser(userData.user);
+        return userData;
+      } catch (err) {
+        setError(err.message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    signIn: async (data) => {
+      try {
+        setLoading(true);
+        const { error, data: userData } = await auth.signIn(data);
+        if (error) throw error;
+        setUser(userData.session.user);
+        return userData;
+      } catch (err) {
+        setError(err.message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    signOut: async () => {
+      try {
+        setLoading(true);
+        const { error } = await auth.signOut();
+        if (error) throw error;
+        setUser(null);
+      } catch (err) {
+        setError(err.message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {!loading && children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return useContext(AuthContext);
 };
