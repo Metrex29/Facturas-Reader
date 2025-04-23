@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { postgres } from '../../lib/postgres';
 import { useAuth } from '../../context/AuthContext';
+import { invoicesApi } from '../../services/api/invoices';
 
 const ViewInvoices = ({ onClose }) => {
   const { user } = useAuth();
@@ -11,12 +11,8 @@ const ViewInvoices = ({ onClose }) => {
   useEffect(() => {
     const fetchInvoices = async () => {
       try {
-        const result = await postgres.from('invoices')
-          .select()
-          .eq('user_id', user.id)
-          .order('date', { ascending: false });
-        
-        setInvoices(result.rows || []);
+        const invoices = await invoicesApi.getUserInvoices(user.id);
+        setInvoices(invoices);
       } catch (err) {
         console.error('Error fetching invoices:', err);
         setError('Error al cargar las facturas');

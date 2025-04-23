@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
-import { postgres } from '../../lib/postgres';
+import { PostgresProvider } from '../../../database/providers/PostgresProvider';
 import UploadInvoice from './UploadInvoice';
 import ViewInvoices from './ViewInvoices';
+
+const dbProvider = new PostgresProvider();
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -16,13 +18,9 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        // Usando PostgreSQL en lugar de Supabase
-        const result = await postgres.from('user_profiles')
-          .select()
-          .eq('user_id', user.id);
-        
-        if (result.rows && result.rows.length > 0) {
-          setUserData(result.rows[0]);
+        if (user?.id) {
+          const userData = await dbProvider.getUser(user.id);
+          setUserData(userData);
         }
       } catch (error) {
         console.error('Error fetching user data:', error);

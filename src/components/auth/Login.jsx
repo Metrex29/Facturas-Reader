@@ -39,8 +39,15 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await signIn({ email: formData.email, password: formData.password }); // Cambiado para usar signIn con el formato correcto
-      navigate('/dashboard');
+      const result = await signIn({ email: formData.email, password: formData.password });
+      if (
+        (result.data?.session) ||
+        (result.data?.user && result.data?.token)
+      ) {
+        navigate('/dashboard');
+      } else {
+        setError('Error al iniciar sesión. Por favor, intenta de nuevo.');
+      }
     } catch (err) {
       setError(err.message);
     } finally {

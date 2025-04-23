@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { postgres, query } from '../../lib/postgres';
 import { useAuth } from '../../context/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
+import { invoicesApi } from '../../services/api/invoices';
 
 const UploadInvoice = ({ onClose }) => {
   const { user } = useAuth();
@@ -35,7 +35,7 @@ const UploadInvoice = ({ onClose }) => {
       // Simulación de subida de archivo
       console.log('File would be uploaded to:', filePath);
 
-      // Crear registro de factura en la base de datos
+      // Crear registro de factura a través de la API
       const invoiceData = {
         user_id: user.id,
         file_url: filePath,
@@ -46,10 +46,10 @@ const UploadInvoice = ({ onClose }) => {
       
       console.log('Creating invoice record:', invoiceData);
       
-      // Insertar en PostgreSQL
-      const result = await postgres.from('invoices').insert(invoiceData).select();
+      // Usar el servicio API para crear la factura
+      const result = await invoicesApi.createInvoice(invoiceData);
 
-      console.log('Invoice record created:', result.rows[0]);
+      console.log('Invoice record created:', result);
       onClose();
     } catch (err) {
       console.error('Full error details:', err);
