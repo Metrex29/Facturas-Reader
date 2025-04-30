@@ -39,17 +39,29 @@ const Login = () => {
     setLoading(true);
 
     try {
+      console.log('Intentando iniciar sesión con:', formData.email);
       const result = await signIn({ email: formData.email, password: formData.password });
-      if (
-        (result.data?.session) ||
-        (result.data?.user && result.data?.token)
-      ) {
-        navigate('/dashboard');
+      console.log('Resultado del inicio de sesión:', result);
+      
+      if (result.error) {
+        setError(result.error.message || 'Error al iniciar sesión. Por favor, intenta de nuevo.');
+        return;
+      }
+      
+      // Verificar si hay una sesión válida en cualquiera de los formatos posibles
+      if (result.data?.session?.user || result.session?.user || result.user) {
+        console.log('Sesión iniciada correctamente, redirigiendo a dashboard');
+        // Forzar una pequeña espera para asegurar que los datos se guarden correctamente
+        setTimeout(() => {
+          navigate('/dashboard');
+        }, 100);
       } else {
+        console.error('Formato de respuesta inesperado:', result);
         setError('Error al iniciar sesión. Por favor, intenta de nuevo.');
       }
     } catch (err) {
-      setError(err.message);
+      console.error('Error en el inicio de sesión:', err);
+      setError(err.message || 'Error inesperado al iniciar sesión');
     } finally {
       setLoading(false);
     }
