@@ -24,19 +24,14 @@ const ViewInvoices = ({ onClose }) => {
     fetchInvoices();
   }, [user]);
 
-  const handleViewPDF = async (fileUrl) => {
+  const handleViewPDF = async (invoiceId) => {
     try {
-      console.log('Attempting to view file:', fileUrl);
+      console.log('Attempting to view invoice PDF with ID:', invoiceId);
       
-      // Para PostgreSQL local, simplemente mostramos la ruta del archivo
-      // En una implementación real, necesitarías servir estos archivos desde un servidor
-      alert(`Esta función está en desarrollo. Ruta del archivo: ${fileUrl}`);
-      
-      // Alternativa: si los archivos están en una carpeta pública
-      // window.open(`/uploads/${fileUrl}`, '_blank');
+      // Abrir el PDF en una nueva pestaña usando el endpoint que sirve el BLOB
+      window.open(`http://localhost:3000/api/invoices/blob/${invoiceId}`, '_blank');
     } catch (err) {
       console.error('View error:', err);
-      console.error('File URL attempting to view:', fileUrl);
       setError('Error al abrir el PDF: ' + err.message);
     }
   };
@@ -76,11 +71,11 @@ const ViewInvoices = ({ onClose }) => {
                     Fecha: {new Date(invoice.date).toLocaleDateString()}
                   </p>
                   <p className="text-gray-600">
-                    Monto: ${invoice.amount?.toFixed(2) || 'N/A'}
+                    Monto: ${typeof invoice.amount === 'number' ? invoice.amount.toFixed(2) : (invoice.amount ? Number(invoice.amount).toFixed(2) : 'N/A')}
                   </p>
                 </div>
                 <button
-                  onClick={() => handleViewPDF(invoice.file_url)}
+                  onClick={() => handleViewPDF(invoice.id)}
                   className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
                 >
                   Ver PDF

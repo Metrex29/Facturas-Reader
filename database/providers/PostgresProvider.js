@@ -7,7 +7,7 @@ export class PostgresProvider extends DatabaseProvider {
   constructor() {
     super();
     // Base URL for API - adjust if your backend is running on a different port
-    this.apiUrl = 'http://localhost:3000/api';
+    this.apiUrl = 'http://localhost:3001/api';
   }
 
   async getUser(id) {
@@ -67,5 +67,44 @@ export class PostgresProvider extends DatabaseProvider {
       method: 'DELETE'
     });
     if (!response.ok) throw new Error('Error al eliminar factura');
+  }
+
+  /**
+   * Sube un archivo de factura como BLOB
+   * @param {Object} invoiceData - Datos de la factura incluyendo el archivo
+   * @returns {Promise<Object>} - Factura creada
+   */
+  async uploadInvoiceBlob(invoiceData) {
+    // Para archivos BLOB, usamos FormData en lugar de JSON
+    const formData = new FormData();
+    
+    // Convertir base64 a Blob si es necesario
+    if (invoiceData.file_blob) {
+      const byteCharacters = atob(invoiceData.file_blob);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'application/pdf' });
+      
+      // Agregar el archivo y los demás campos al FormData
+      formData.append('file', blob, invoiceData.file_name);
+    }
+    
+    // Agregar los demás campos al FormData
+    Object.keys(invoiceData).forEach(key => {
+      if (key !== 'file_blob') {
+        formData.append(key, invoiceData[key]);
+      }
+    });
+    
+    const response = await fetch(`${this.apiUrl}/invoices/upload-blob`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) throw new Error('Error al subir factura como BLOB');
+    return await response.json();
   }
 }

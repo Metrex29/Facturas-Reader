@@ -8,6 +8,10 @@ export class InvoiceRepository {
   }
 
   async createInvoice(invoiceData) {
+    // Verificar si estamos enviando un archivo BLOB
+    if (invoiceData.hasOwnProperty('file_blob')) {
+      return this.db.uploadInvoiceBlob(invoiceData);
+    }
     return this.db.createInvoice(invoiceData);
   }
 

@@ -2,11 +2,11 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
-import Dashboard from "./components/dashboard/Dashboard";
 import DashboardNew from "./components/dashboard/DashboardNew";
 import Login from "./components/auth/Login";
 import SignUp from "./components/auth/SignUp";
 import Hero from "./components/layout/Hero";
+import AnonymousUploadPage from "./pages/AnonymousUploadPage";
 import { ChakraProvider, CSSReset } from '@chakra-ui/react';
 // Importamos el tema de Chakra UI para asegurar que se aplique correctamente
 import theme from '../horizon-ui-chakra/src/theme/theme';
@@ -27,7 +27,7 @@ function App() {
                   <Route path="/login" element={<Login />} />
                   <Route path="/signup" element={<SignUp />} />
                   <Route path="/dashboard" element={<DashboardNew />} />
-                  <Route path="/dashboard-old" element={<Dashboard />} />
+                  <Route path="/upload-anonymous" element={<AnonymousUploadPage />} />
                 </Routes>
               </main>
               <Footer />

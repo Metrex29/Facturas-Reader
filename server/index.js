@@ -1,13 +1,35 @@
 const express = require('express');
 const cors = require('cors');
 const pool = require('./config/database');
+const bodyParser = require('body-parser');
 
 const app = express();
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3001; // Cambiado a puerto 3001 para evitar conflictos
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+
+// Configuración para manejar archivos grandes
+const MAX_FILE_SIZE = '20mb'; // Aumentamos el límite a 20MB para dar margen
+app.use(express.json({ limit: MAX_FILE_SIZE }));
+app.use(bodyParser.json({ limit: MAX_FILE_SIZE }));
+app.use(bodyParser.urlencoded({ limit: MAX_FILE_SIZE, extended: true }));
+
+// Servir archivos estáticos desde la carpeta uploads
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Configuración para manejar errores de tamaño de payload
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 413) {
+    console.error('Error de tamaño de payload:', err);
+    return res.status(413).json({
+      message: 'El archivo es demasiado grande. El tamaño máximo permitido es 20MB.',
+      error: 'tamaño_excedido'
+    });
+  }
+  next(err);
+});
 
 // Ruta de bienvenida (opcional, puedes quitarla si no la usas)
 app.get('/api', (req, res) => {
@@ -96,6 +118,50 @@ app.post('/api/auth/login', async (req, res) => {
       status: 'error',
       message: 'Error del servidor al procesar la solicitud'
     });
+  }
+});
+
+// Importar rutas de facturas
+const invoicesRoutes = require('./routes/invoices');
+const anonymousInvoicesRoutes = require('./routes/anonymous-invoices');
+
+// Usar las rutas de facturas
+app.use('/api/invoices', invoicesRoutes);
+app.use('/api/invoices/anonymous', anonymousInvoicesRoutes);
+
+// Endpoint para actualizar una factura
+app.put('/api/invoices/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, description } = req.body;
+    const result = await pool.query(
+      'UPDATE invoices SET amount = $1, description = $2 WHERE id = $3 RETURNING *',
+      [amount, description, id]
+    );
+    if (result.rows.length === 0) {
+      res.status(404).json({ message: 'Factura no encontrada' });
+    } else {
+      res.json(result.rows[0]);
+    }
+  } catch (err) {
+    console.error('Error al actualizar factura:', err);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// Endpoint para eliminar una factura
+app.delete('/api/invoices/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('DELETE FROM invoices WHERE id = $1 RETURNING *', [id]);
+    if (result.rows.length === 0) {
+      res.status(404).json({ message: 'Factura no encontrada' });
+    } else {
+      res.json({ message: 'Factura eliminada correctamente' });
+    }
+  } catch (err) {
+    console.error('Error al eliminar factura:', err);
+    res.status(500).json({ message: 'Error del servidor' });
   }
 });
 

@@ -1,106 +1,131 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import FileUploadForm from '../ui/FileUploadForm';
 import { useAuth } from '../../context/AuthContext';
-import { v4 as uuidv4 } from 'uuid';
 import { invoicesApi } from '../../services/api/invoices';
 
 const UploadInvoice = ({ onClose }) => {
   const { user } = useAuth();
-  const [file, setFile] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [invoices, setInvoices] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('upload'); // 'upload' o 'view'
 
-  const handleFileChange = (e) => {
-    const selectedFile = e.target.files[0];
-    if (selectedFile && selectedFile.type === 'application/pdf') {
-      setFile(selectedFile);
-      setError(null);
-    } else {
-      setError('Por favor, selecciona un archivo PDF válido');
-      setFile(null);
+  useEffect(() => {
+    if (activeTab === 'view') {
+      fetchInvoices();
     }
-  };
+  }, [activeTab]);
 
-  const handleUpload = async () => {
-    if (!file) return;
-    setLoading(true);
+  const fetchInvoices = async () => {
     try {
-      // Por ahora, solo simularemos la URL del archivo
-      // En una implementación real, subirías el archivo a un servicio de almacenamiento
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
-
-      console.log('Starting upload process for user:', user.id);
-
-      // Simulación de subida de archivo
-      console.log('File would be uploaded to:', filePath);
-
-      // Crear registro de factura a través de la API
-      const invoiceData = {
-        user_id: user.id,
-        file_url: filePath,
-        date: new Date().toISOString().split('T')[0],
-        amount: 0,
-        description: file.name
-      };
-      
-      console.log('Creating invoice record:', invoiceData);
-      
-      // Usar el servicio API para crear la factura
-      const result = await invoicesApi.createInvoice(invoiceData);
-
-      console.log('Invoice record created:', result);
-      onClose();
+      setLoading(true);
+      const invoicesData = await invoicesApi.getUserInvoices(user.id);
+      setInvoices(invoicesData);
+      setError(null);
     } catch (err) {
-      console.error('Full error details:', err);
-      setError('Error al subir el archivo: ' + err.message);
+      console.error('Error al cargar facturas:', err);
+      setError('Error al cargar las facturas');
     } finally {
       setLoading(false);
     }
   };
 
-  // El resto del componente permanece igual
+  const handleSuccess = async (result) => {
+    console.log('Factura subida exitosamente:', result);
+    // Actualizar la lista de facturas si estamos en la pestaña de visualización
+    if (activeTab === 'view') {
+      await fetchInvoices();
+    }
+  };
+
+  const handleViewPDF = (invoice) => {
+    // Abrir el PDF en una nueva pestaña
+    window.open(`http://localhost:3001${invoice.file_url}`, '_blank');
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg p-6 max-w-md w-full">
-        <h2 className="text-2xl font-bold mb-4">Subir Factura</h2>
-        
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2">
-            Seleccionar PDF
-          </label>
-          <input
-            type="file"
-            accept=".pdf"
-            onChange={handleFileChange}
-            className="w-full p-2 border rounded"
-          />
-        </div>
-
-        {error && (
-          <div className="mb-4 text-red-500 text-sm">
-            {error}
-          </div>
-        )}
-
-        <div className="flex justify-end gap-2">
+      <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">Mis Facturas</h2>
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800"
+            className="text-gray-500 hover:text-gray-700"
           >
-            Cancelar
-          </button>
-          <button
-            onClick={handleUpload}
-            disabled={!file || loading}
-            className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
-          >
-            {loading ? 'Subiendo...' : 'Subir'}
+            ✕
           </button>
         </div>
+
+        {/* Pestañas de navegación */}
+        <div className="flex border-b mb-6">
+          <button
+            className={`py-2 px-4 ${activeTab === 'upload' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500'}`}
+            onClick={() => setActiveTab('upload')}
+          >
+            Subir Factura
+          </button>
+          <button
+            className={`py-2 px-4 ${activeTab === 'view' ? 'border-b-2 border-purple-600 text-purple-600' : 'text-gray-500'}`}
+            onClick={() => setActiveTab('view')}
+          >
+            Ver Facturas
+          </button>
+        </div>
+
+        {/* Contenido de las pestañas */}
+        {activeTab === 'upload' ? (
+          <FileUploadForm 
+            onSuccess={handleSuccess} 
+            onClose={onClose} 
+          />
+        ) : (
+          <div className="mt-4">
+            {loading ? (
+              <div className="flex justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-500"></div>
+              </div>
+            ) : error ? (
+              <div className="text-red-500 text-center">{error}</div>
+            ) : invoices.length === 0 ? (
+              <div className="text-center text-gray-500">
+                No tienes facturas subidas aún
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {invoices.map((invoice) => (
+                  <div
+                    key={invoice.id}
+                    className="border rounded-lg p-4 flex justify-between items-center hover:bg-gray-50"
+                  >
+                    <div>
+                      <p className="font-semibold">
+                        Fecha: {new Date(invoice.date).toLocaleDateString()}
+                      </p>
+                      <p className="text-gray-600">
+                        Monto: ${typeof invoice.amount === 'number' ? invoice.amount.toFixed(2) : (invoice.amount ? Number(invoice.amount).toFixed(2) : 'N/A')}
+                      </p>
+                      {invoice.description && (
+                        <p className="text-gray-600 text-sm">
+                          {invoice.description}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleViewPDF(invoice)}
+                      className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
+                    >
+                      Ver PDF
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
 };
+
 
 export default UploadInvoice;

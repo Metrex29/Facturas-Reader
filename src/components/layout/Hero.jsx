@@ -50,6 +50,11 @@ export default function Hero() {
                 Iniciar Sesión
               </Button>
             </Link>
+            <Link to="/upload-anonymous">
+              <Button size="large" variant="secondary">
+                Subir factura sin cuenta
+              </Button>
+            </Link>
             <Link to="/signup">
               <Button 
                 size="large" 
@@ -59,6 +64,7 @@ export default function Hero() {
                 Registrarse
               </Button>
             </Link>
+           
           </div>
         </div>
         <div className="relative flex flex-1 flex-col h-[400px] lg:px-16">

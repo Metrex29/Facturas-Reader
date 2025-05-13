@@ -10,7 +10,7 @@ import ViewInvoices from './ViewInvoices';
 import { Box, Flex, Grid, GridItem, Text, Icon, useColorModeValue } from '@chakra-ui/react';
 
 // Importaciones de componentes adaptados de Horizon UI
-import { Card, MiniStatistics, LineChart, BarChart, Mastercard } from './HorizonAdapters';
+import { Card, MiniStatistics, LineChart, BarChart } from './HorizonAdapters';
 
 // Iconos
 import { ArrowUpIcon } from '@heroicons/react/20/solid';
@@ -238,13 +238,7 @@ const DashboardNew = () => {
       icon: '📤',
       onClick: () => setShowUploadModal(true)
     },
-    {
-      id: 'view',
-      title: 'Mis Facturas',
-      description: 'Gestiona tus facturas personales',
-      icon: '📋',
-      onClick: () => setShowViewModal(true)
-    },
+ 
     {
       id: 'analyze',
       title: 'Mi Análisis',
@@ -290,7 +284,7 @@ const DashboardNew = () => {
           </div>
 
           {/* Mini Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-6">
             <Box>
               <MiniStatistics
                 startContent={
@@ -311,19 +305,6 @@ const DashboardNew = () => {
                 name="Gasto Total"
                 value="$1,234"
                 growth="+5%"
-              />
-            </Box>
-            <Box>
-              <MiniStatistics
-                name="Facturas Pendientes"
-                value="3"
-              />
-            </Box>
-            <Box>
-              <MiniStatistics
-                name="Ahorro Estimado"
-                value="$321"
-                growth="+10%"
               />
             </Box>
           </div>
@@ -365,16 +346,7 @@ const DashboardNew = () => {
             ))}
           </div>
 
-          {/* Mastercard Component */}
-          <div className="mt-6">
-            <Box maxW="400px" mx="auto">
-              <Mastercard
-                number="**** **** **** 1234"
-                exp="09/24"
-                cvv="***"
-              />
-            </Box>
-          </div>
+
         </motion.div>
       </div>
       
