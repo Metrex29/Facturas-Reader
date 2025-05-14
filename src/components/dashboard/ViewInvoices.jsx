@@ -24,12 +24,15 @@ const ViewInvoices = ({ onClose }) => {
     fetchInvoices();
   }, [user]);
 
-  const handleViewPDF = async (invoiceId) => {
+  const handleViewPDF = async (invoice) => {
     try {
-      console.log('Attempting to view invoice PDF with ID:', invoiceId);
+      console.log('Attempting to view invoice PDF:', invoice);
       
-      // Abrir el PDF en una nueva pestaña usando el endpoint que sirve el BLOB
-      window.open(`http://localhost:3000/api/invoices/blob/${invoiceId}`, '_blank');
+      // Abrir el PDF en una nueva pestaña usando la URL completa del archivo
+      if (invoice.file_url) {
+        window.open(`http://localhost:3001${invoice.file_url}`, '_blank');
+      } else {
+        setError('No se encontró la URL del archivo para esta factura');}
     } catch (err) {
       console.error('View error:', err);
       setError('Error al abrir el PDF: ' + err.message);
@@ -75,7 +78,7 @@ const ViewInvoices = ({ onClose }) => {
                   </p>
                 </div>
                 <button
-                  onClick={() => handleViewPDF(invoice.id)}
+                  onClick={() => handleViewPDF(invoice)}
                   className="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700"
                 >
                   Ver PDF

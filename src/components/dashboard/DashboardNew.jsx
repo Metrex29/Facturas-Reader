@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 // import { PostgresProvider } from '../../../database/providers/PostgresProvider';
 import UploadInvoice from './UploadInvoice';
 import ViewInvoices from './ViewInvoices';
+import { invoicesApi } from '../../services/api/invoices';
 
 // Importaciones de Chakra UI
 import { Box, Flex, Grid, GridItem, Text, Icon, useColorModeValue } from '@chakra-ui/react';
@@ -212,16 +213,29 @@ const DashboardNew = () => {
   const boxBg = useColorModeValue("secondaryGray.300", "whiteAlpha.100");
 
   useEffect(() => {
-    // Simulamos la carga de datos del usuario
+    // Cargamos los datos reales del usuario
     const fetchUserData = async () => {
       try {
-        // Datos de ejemplo
+        // Obtenemos las facturas del usuario desde la API
+        const invoices = await invoicesApi.getUserInvoices(user.id);
+        
+        // Calculamos el total de facturas subidas
+        const totalUploads = invoices.length;
+        
+        // Actualizamos los datos del usuario
         setUserData({
-          total_uploads: 12,
-          last_login: new Date().toISOString()
+          total_uploads: totalUploads,
+          last_login: new Date().toISOString(),
+          invoices: invoices
         });
       } catch (error) {
         console.error('Error fetching user data:', error);
+        // En caso de error, establecemos valores por defecto
+        setUserData({
+          total_uploads: 0,
+          last_login: new Date().toISOString(),
+          invoices: []
+        });
       } finally {
         setLoading(false);
       }
@@ -238,7 +252,13 @@ const DashboardNew = () => {
       icon: '📤',
       onClick: () => setShowUploadModal(true)
     },
- 
+    {
+      id: 'view',
+      title: 'Ver Facturas',
+      description: 'Visualiza todas tus facturas subidas',
+      icon: '📋',
+      onClick: () => setShowViewModal(true)
+    },
     {
       id: 'analyze',
       title: 'Mi Análisis',
@@ -303,8 +323,8 @@ const DashboardNew = () => {
             <Box>
               <MiniStatistics
                 name="Gasto Total"
-                value="$1,234"
-                growth="+5%"
+                value="$0"
+                growth="0%"
               />
             </Box>
           </div>
@@ -351,7 +371,25 @@ const DashboardNew = () => {
       </div>
       
       {showUploadModal && (
-        <UploadInvoice onClose={() => setShowUploadModal(false)} />
+        <UploadInvoice 
+          onClose={() => {
+            setShowUploadModal(false);
+            // Actualizamos los datos después de subir una factura
+            const refreshUserData = async () => {
+              try {
+                const invoices = await invoicesApi.getUserInvoices(user.id);
+                setUserData({
+                  ...userData,
+                  total_uploads: invoices.length,
+                  invoices: invoices
+                });
+              } catch (error) {
+                console.error('Error refreshing user data:', error);
+              }
+            };
+            refreshUserData();
+          }} 
+        />
       )}
       
       {showViewModal && (
