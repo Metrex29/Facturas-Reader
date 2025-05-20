@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const pool = require('./config/database');
@@ -162,6 +163,25 @@ app.delete('/api/invoices/:id', async (req, res) => {
   } catch (err) {
     console.error('Error al eliminar factura:', err);
     res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// Ruta de prueba para verificar la conexión a la base de datos
+app.get('/api/test-db', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT NOW() as current_time');
+    res.json({
+      status: 'success',
+      message: 'Conexión a la base de datos exitosa',
+      time: result.rows[0].current_time
+    });
+  } catch (err) {
+    console.error('Error al conectar con la base de datos:', err);
+    res.status(500).json({
+      status: 'error',
+      message: 'Error al conectar con la base de datos',
+      error: err.message
+    });
   }
 });
 

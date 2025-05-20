@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
+import { motion } from 'framer-motion';
 // Comentamos temporalmente esta importación hasta tener el proveedor configurado
 // import { PostgresProvider } from '../../../database/providers/PostgresProvider';
 import UploadInvoice from './UploadInvoice';
@@ -8,7 +8,7 @@ import ViewInvoices from './ViewInvoices';
 import { invoicesApi } from '../../services/api/invoices';
 
 // Importaciones de Chakra UI
-import { Box, Flex, Grid, GridItem, Text, Icon, useColorModeValue } from '@chakra-ui/react';
+import { Box, Flex, Grid, GridItem, Text, Icon } from '@chakra-ui/react';
 
 // Importaciones de componentes adaptados de Horizon UI
 import { Card, MiniStatistics, LineChart, BarChart } from './HorizonAdapters';
@@ -20,149 +20,184 @@ import { ArrowUpIcon } from '@heroicons/react/20/solid';
 // const dbProvider = new PostgresProvider();
 // Usaremos datos de ejemplo por ahora
 
-// Datos de ejemplo para los gráficos
-const lineChartData = [
-  {
-    name: "Gastos Mensuales",
-    data: [50, 64, 48, 66, 49, 68],
-  },
-  {
-    name: "Ingresos",
-    data: [30, 40, 24, 46, 20, 46],
-  },
-];
+function procesarAnalisisFacturas(facturas) {
+  console.log("Facturas recibidas para análisis:", facturas);
+  // Inicializar estructuras
+  const gastosPorCategoria = {};
+  const gastosPorMes = {};
+  const gastosPorCategoriaYMes = {}; // Para análisis combinado
+  let gastoTotal = 0;
 
-const lineChartOptions = {
-  chart: {
-    toolbar: {
-      show: false,
-    },
-  },
-  tooltip: {
-    theme: "dark",
-  },
-  dataLabels: {
-    enabled: false,
-  },
-  stroke: {
-    curve: "smooth",
-  },
-  xaxis: {
-    categories: ["Ene", "Feb", "Mar", "Abr", "May", "Jun"],
-    labels: {
-      style: {
-        colors: "#A3AED0",
-        fontSize: "12px",
-        fontWeight: "500",
-      },
-    },
-  },
-  yaxis: {
-    labels: {
-      style: {
-        colors: "#A3AED0",
-        fontSize: "12px",
-        fontWeight: "500",
-      },
-    },
-  },
-  legend: {
-    show: false,
-  },
-  grid: {
-    strokeDashArray: 5,
-  },
-  fill: {
-    type: "gradient",
-    gradient: {
-      shade: "light",
-      type: "vertical",
-      shadeIntensity: 0.5,
-      gradientToColors: undefined,
-      inverseColors: true,
-      opacityFrom: 0.8,
-      opacityTo: 0,
-      stops: [],
-    },
-    colors: ["#4318FF", "#39B8FF"],
-  },
-  colors: ["#4318FF", "#39B8FF"],
-};
+  // Categorías principales para normalizar
+  const categoriasNormalizadas = {
+    'alimentacion': 'Alimentación',
+    'alimentos': 'Alimentación',
+    'comida': 'Alimentación',
+    'bebida': 'Alimentación',
+    'frutas': 'Frutas y Verduras',
+    'verduras': 'Frutas y Verduras',
+    'fruta': 'Frutas y Verduras',
+    'verdura': 'Frutas y Verduras',
+    'higiene': 'Higiene',
+    'limpieza': 'Higiene',
+    'aseo': 'Higiene',
+    'hogar': 'Hogar',
+    'casa': 'Hogar',
+    'muebles': 'Hogar',
+    'electronica': 'Electrónica',
+    'electrónica': 'Electrónica',
+    'tecnologia': 'Electrónica',
+    'tecnología': 'Electrónica',
+    'ropa': 'Ropa',
+    'vestimenta': 'Ropa',
+    'calzado': 'Ropa',
+    'transporte': 'Transporte',
+    'gasolina': 'Transporte',
+    'combustible': 'Transporte',
+    'ocio': 'Ocio',
+    'entretenimiento': 'Ocio',
+    'salud': 'Salud',
+    'farmacia': 'Salud',
+    'medicamentos': 'Salud',
+    'educacion': 'Educación',
+    'educación': 'Educación',
+    'libros': 'Educación',
+    'otros': 'Otros'
+  };
 
-const barChartData = [
-  {
-    name: "Gastos por Categoría",
-    data: [400, 370, 330, 390, 320, 350, 360, 320, 380],
-  },
-];
+  // Función para normalizar categorías
+  const normalizarCategoria = (categoria) => {
+    if (!categoria) return 'Otros';
+    
+    const categoriaLower = categoria.toLowerCase().trim();
+    
+    // Buscar coincidencias exactas o parciales
+    for (const [clave, valor] of Object.entries(categoriasNormalizadas)) {
+      if (categoriaLower === clave || categoriaLower.includes(clave)) {
+        return valor;
+      }
+    }
+    
+    return 'Otros'; // Categorizar como 'Otros' si no hay coincidencia
+  };
 
-const barChartOptions = {
-  chart: {
-    toolbar: {
-      show: false,
-    },
-  },
-  tooltip: {
-    style: {
-      fontSize: "12px",
-    },
-    onDatasetHover: {
-      style: {
-        fontSize: "12px",
-      },
-    },
-    theme: "dark",
-  },
-  xaxis: {
-    categories: ["Alimentos", "Transporte", "Servicios", "Ocio", "Salud", "Educación", "Ropa", "Hogar", "Otros"],
-    show: false,
-    labels: {
-      show: true,
-      style: {
-        colors: "#A3AED0",
-        fontSize: "12px",
-        fontWeight: "500",
-      },
-    },
-    axisBorder: {
-      show: false,
-    },
-    axisTicks: {
-      show: false,
-    },
-  },
+  // Verificar si hay facturas para procesar
+  if (!facturas || facturas.length === 0) {
+    console.log("No hay facturas para analizar");
+    return { gastosPorCategoria, gastosPorMes, gastoTotal, gastosPorCategoriaYMes };
+  }
+
+  // Procesar cada factura
+  facturas.forEach((factura, i) => {
+    if (!factura.analysis) {
+      console.log(`Factura ${i} sin análisis, saltando...`);
+      return;
+    }
+    
+    let productos = [];
+    try {
+      // Verificar si el análisis ya es un objeto (puede ocurrir si ya fue parseado)
+      if (typeof factura.analysis === 'object' && factura.analysis !== null) {
+        productos = Array.isArray(factura.analysis) ? factura.analysis : [factura.analysis];
+        console.log(`Factura ${i} ya tiene análisis como objeto con ${productos.length} productos`);
+      } else {
+        // Limpiar el string JSON de la factura
+        let clean = factura.analysis
+          .replace(/```json|```/g, '')
+          .trim();
+        
+        // Intentar parsear el JSON
+        productos = JSON.parse(clean);
+        console.log(`Factura ${i} procesada con ${productos.length} productos`);
+      }
+    } catch (e) {
+      console.error(`Error al procesar factura ${i}:`, e);
+      return; // Saltamos esta factura si hay error
+    }
+
+    // Verificar que productos sea un array
+    if (!Array.isArray(productos)) {
+      console.error(`Factura ${i}: el análisis no es un array válido`);
+      return;
+    }
+
+    // Obtener fecha de la factura para análisis por mes
+    let fechaFactura = new Date();
+    if (factura.date) {
+      try {
+        fechaFactura = new Date(factura.date);
+      } catch (e) {
+        console.error(`Error al procesar fecha de factura ${i}:`, e);
+      }
+    }
+    const mes = `${fechaFactura.getFullYear()}-${(fechaFactura.getMonth()+1).toString().padStart(2,'0')}`;
+
+    // Procesar cada producto de la factura
+    productos.forEach((prod) => {
+      // Obtener precio unitario y cantidad
+      const precioUnitario = parseFloat(prod.precio_unitario || prod.price || prod.precio || 0);
+      const cantidad = parseFloat(prod.cantidad || 1);
+      let precioTotal = 0;
+      if (!isNaN(precioUnitario) && !isNaN(cantidad)) {
+        precioTotal = precioUnitario * cantidad;
+      } else {
+        // Fallback: intentar con precio/price si no hay unitario
+        const precioValue = parseFloat(prod.precio || prod.price || 0);
+        precioTotal = isNaN(precioValue) ? 0 : precioValue;
+      }
+      if (precioTotal <= 0) return;
+      // Obtener la categoría (puede estar como 'categoria' o 'category')
+      const categoriaValue = prod.categoria || prod.category || 'Otros';
+      // Normalizar la categoría
+      const categoriaNormalizada = normalizarCategoria(categoriaValue);
+      // Sumar por categoría normalizada
+      gastosPorCategoria[categoriaNormalizada] = (gastosPorCategoria[categoriaNormalizada] || 0) + precioTotal;
+      // Sumar al total
+      gastoTotal += precioTotal;
+      // Sumar por mes
+      gastosPorMes[mes] = (gastosPorMes[mes] || 0) + precioTotal;
+      // Análisis combinado por categoría y mes
+      if (!gastosPorCategoriaYMes[mes]) {
+        gastosPorCategoriaYMes[mes] = {};
+      }
+      gastosPorCategoriaYMes[mes][categoriaNormalizada] = 
+        (gastosPorCategoriaYMes[mes][categoriaNormalizada] || 0) + precioTotal;
+    });
+  });
+
+  console.log("Análisis completado:", {
+    categorías: Object.keys(gastosPorCategoria).length,
+    meses: Object.keys(gastosPorMes).length,
+    gastoTotal
+  });
+
+  return { 
+    gastosPorCategoria, 
+    gastosPorMes, 
+    gastoTotal,
+    gastosPorCategoriaYMes
+  };
+}
+
+const barChartOptionsBase = {
+  chart: { toolbar: { show: false } },
+  tooltip: { theme: "dark" },
+  dataLabels: { enabled: false },
   yaxis: {
     show: true,
     color: "black",
     labels: {
       show: true,
-      style: {
-        colors: "#A3AED0",
-        fontSize: "12px",
-        fontWeight: "500",
-      },
-    },
+      style: { colors: "#A3AED0", fontSize: "12px", fontWeight: "500" }
+    }
   },
   grid: {
     borderColor: "rgba(163, 174, 208, 0.3)",
     show: true,
-    yaxis: {
-      lines: {
-        show: true,
-      },
-    },
-    row: {
-      opacity: 0.5,
-    },
-    column: {
-      opacity: 0.5,
-    },
-    padding: {
-      left: 0,
-      right: 0,
-      top: 15,
-      bottom: 15,
-    },
+    yaxis: { lines: { show: true } },
+    row: { opacity: 0.5 },
+    column: { opacity: 0.5 },
+    padding: { left: 0, right: 0, top: 15, bottom: 15 }
   },
   fill: {
     type: "gradient",
@@ -173,50 +208,58 @@ const barChartOptions = {
       opacityTo: 0.9,
       colorStops: [
         [
-          {
-            offset: 0,
-            color: "#4318FF",
-            opacity: 1,
-          },
-          {
-            offset: 100,
-            color: "rgba(67, 24, 255, 1)",
-            opacity: 0.28,
-          },
-        ],
-      ],
+          { offset: 0, color: "#4318FF", opacity: 1 },
+          { offset: 100, color: "rgba(67, 24, 255, 1)", opacity: 0.28 }
+        ]
+      ]
+    }
+  },
+  plotOptions: { bar: { borderRadius: 10, columnWidth: "40px" } }
+};
+
+const lineChartOptionsBase = {
+  chart: { toolbar: { show: false } },
+  tooltip: { theme: "dark" },
+  dataLabels: { enabled: false },
+  stroke: { curve: "smooth" },
+  yaxis: {
+    labels: {
+      style: { colors: "#A3AED0", fontSize: "12px", fontWeight: "500" }
+    }
+  },
+  legend: { show: false },
+  grid: { strokeDashArray: 5 },
+  fill: {
+    type: "gradient",
+    gradient: {
+      shade: "light",
+      type: "vertical",
+      shadeIntensity: 0.5,
+      gradientToColors: undefined,
+      inverseColors: true,
+      opacityFrom: 0.8,
+      opacityTo: 0,
+      stops: []
     },
+    colors: ["#4318FF", "#39B8FF"]
   },
-  dataLabels: {
-    enabled: false,
-  },
-  plotOptions: {
-    bar: {
-      borderRadius: 10,
-      columnWidth: "40px",
-    },
-  },
+  colors: ["#4318FF", "#39B8FF"]
 };
 
 const DashboardNew = () => {
   const { user } = useAuth();
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [selectedOption, setSelectedOption] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
 
-  // Colores para Chakra UI
-  const textColor = useColorModeValue("secondaryGray.900", "white");
-  const textColorSecondary = "secondaryGray.600";
-  const brandColor = useColorModeValue("brand.500", "white");
-  const boxBg = useColorModeValue("secondaryGray.300", "whiteAlpha.100");
+  const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!user || !user.id) return;
     // Cargamos los datos reales del usuario
     const fetchUserData = async () => {
       try {
-        // Obtenemos las facturas del usuario desde la API
         const invoices = await invoicesApi.getUserInvoices(user.id);
         
         // Calculamos el total de facturas subidas
@@ -228,6 +271,7 @@ const DashboardNew = () => {
           last_login: new Date().toISOString(),
           invoices: invoices
         });
+        setError(null); // Limpiamos cualquier error previo
       } catch (error) {
         console.error('Error fetching user data:', error);
         // En caso de error, establecemos valores por defecto
@@ -236,6 +280,8 @@ const DashboardNew = () => {
           last_login: new Date().toISOString(),
           invoices: []
         });
+        // Guardamos el mensaje de error para mostrarlo al usuario
+        setError('No se pudieron cargar las facturas. Comprueba que el servidor esté funcionando en el puerto 3001.');
       } finally {
         setLoading(false);
       }
@@ -273,6 +319,163 @@ const DashboardNew = () => {
     }
   ];
 
+  // Procesar datos reales para las gráficas
+  // Usamos un estado separado para los datos procesados para asegurar la actualización de las gráficas
+  const [datosGraficas, setDatosGraficas] = useState({ gastosPorCategoria: {}, gastosPorMes: {}, gastoTotal: 0 });
+  
+  // Efecto para procesar los datos cuando userData cambia
+  useEffect(() => {
+    if (userData && userData.invoices) {
+      console.log('Procesando facturas para gráficas:', userData.invoices.length, 'facturas');
+      // Verificar si hay análisis en las facturas
+      const facturasConAnalisis = userData.invoices.filter(f => f.analysis);
+      console.log('Facturas con análisis:', facturasConAnalisis.length);
+      
+      const datosActualizados = procesarAnalisisFacturas(userData.invoices);
+      setDatosGraficas(datosActualizados);
+      console.log('Datos de gráficas actualizados:', datosActualizados);
+    }
+  }, [userData]);
+  
+  const { gastosPorCategoria, gastosPorMes, gastoTotal } = datosGraficas;
+
+  // Preparar datos para la gráfica de barras (por categoría)
+  const categorias = Object.keys(gastosPorCategoria).sort((a, b) => gastosPorCategoria[b] - gastosPorCategoria[a]);
+  const datosCategorias = categorias.map(cat => parseFloat(gastosPorCategoria[cat].toFixed(2)));
+  
+  // Colores personalizados para categorías
+  const coloresCategorias = {
+    'Alimentación': '#4318FF',
+    'Frutas y Verduras': '#05CD99',
+    'Higiene': '#FFB547',
+    'Hogar': '#EE5D50',
+    'Electrónica': '#39B8FF',
+    'Ropa': '#6AD2FF',
+    'Transporte': '#E31A1A',
+    'Ocio': '#01B574',
+    'Salud': '#FF9AD5',
+    'Educación': '#FFCE20',
+    'Otros': '#A3AED0'
+  };
+  
+  // Asignar colores a las categorías
+  const coloresGrafica = categorias.map(cat => coloresCategorias[cat] || '#A3AED0');
+  
+  const barChartData = [
+    {
+      name: "Gastos por Categoría",
+      data: Array.isArray(datosCategorias) ? datosCategorias : [],
+    },
+  ];
+  
+  const barChartOptions = {
+    ...barChartOptionsBase,
+    colors: coloresGrafica,
+    xaxis: {
+      categories: categorias.length > 0 ? categorias : ["Sin datos"],
+      labels: {
+        show: true,
+        style: { colors: "#A3AED0", fontSize: "12px", fontWeight: "500" },
+        rotate: -45,
+        rotateAlways: categorias.length > 5
+      },
+      axisBorder: { show: false },
+      axisTicks: { show: false }
+    },
+    tooltip: {
+      theme: "dark",
+      y: {
+        formatter: function(value) {
+          return value.toFixed(2) + " €";
+        }
+      }
+    },
+    plotOptions: {
+      ...barChartOptionsBase.plotOptions,
+      bar: {
+        ...barChartOptionsBase.plotOptions.bar,
+        distributed: true,
+        columnWidth: "60%"
+      }
+    }
+  };
+
+  // Preparar datos para la gráfica de líneas (por mes)
+  const meses = Object.keys(gastosPorMes).sort();
+  const datosMeses = meses.map(mes => parseFloat(gastosPorMes[mes].toFixed(2)));
+  
+  // Formatear nombres de meses para mejor visualización
+  const nombresMeses = meses.map(mes => {
+    const [año, numMes] = mes.split('-');
+    const fecha = new Date(parseInt(año), parseInt(numMes) - 1, 1);
+    return fecha.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
+  });
+  
+  const lineChartData = [
+    {
+      name: "Gastos Mensuales",
+      data: Array.isArray(datosMeses) ? datosMeses : [],
+    },
+  ];
+  
+  const lineChartOptions = {
+    ...lineChartOptionsBase,
+    xaxis: {
+      categories: nombresMeses.length > 0 ? nombresMeses : ["Sin datos"],
+      labels: {
+        style: { colors: "#A3AED0", fontSize: "12px", fontWeight: "500" },
+        rotate: -45,
+        rotateAlways: meses.length > 4
+      }
+    },
+    tooltip: {
+      theme: "dark",
+      y: {
+        formatter: function(value) {
+          return value.toFixed(2) + " €";
+        }
+      },
+      x: {
+        show: true
+      }
+    },
+    markers: {
+      size: 5,
+      colors: ["#4318FF"],
+      strokeColors: "#fff",
+      strokeWidth: 2,
+      hover: {
+        size: 7
+      }
+    },
+    grid: {
+      ...lineChartOptionsBase.grid,
+      row: {
+        colors: ["transparent", "transparent"],
+        opacity: 0.5
+      }
+    }
+  };
+
+  // Función para borrar una factura y actualizar el dashboard
+  const handleDeleteInvoice = async (invoiceId) => {
+    try {
+      // Llamar a la API para borrar la factura
+      await invoicesApi.deleteInvoice(invoiceId);
+      // Actualizar el estado local eliminando la factura borrada
+      const nuevasFacturas = userData.invoices.filter(f => f.id !== invoiceId);
+      setUserData({
+        ...userData,
+        total_uploads: nuevasFacturas.length,
+        invoices: nuevasFacturas,
+        last_update: new Date().toISOString()
+      });
+    } catch (error) {
+      setError('Error al borrar la factura. Intenta de nuevo.');
+      console.error('Error al borrar factura:', error);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -284,6 +487,12 @@ const DashboardNew = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-md">
+            <p className="text-red-700 font-medium">{error}</p>
+            <p className="mt-2 text-sm">Intenta recargar la página o verifica que el servidor esté en funcionamiento.</p>
+          </div>
+        )}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -323,7 +532,7 @@ const DashboardNew = () => {
             <Box>
               <MiniStatistics
                 name="Gasto Total"
-                value="$0"
+                value={`${gastoTotal.toFixed(2)} €`}
                 growth="0%"
               />
             </Box>
@@ -332,15 +541,23 @@ const DashboardNew = () => {
           {/* Charts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <Box className="bg-white rounded-lg shadow-md p-4">
-              <Text className="text-xl font-semibold mb-4">Gastos vs Ingresos</Text>
-              <Box h="300px">
-                <LineChart chartData={lineChartData} chartOptions={lineChartOptions} />
+              <Text className="text-xl font-semibold mb-4">Evolución de Gastos Mensuales</Text>
+              <Box h="300px" display="flex" alignItems="center" justifyContent="center">
+                {datosMeses.length === 0 ? (
+                  <Text color="gray.400" textAlign="center">No hay datos para mostrar</Text>
+                ) : (
+                  <LineChart chartData={lineChartData} chartOptions={lineChartOptions} />
+                )}
               </Box>
             </Box>
             <Box className="bg-white rounded-lg shadow-md p-4">
               <Text className="text-xl font-semibold mb-4">Gastos por Categoría</Text>
-              <Box h="300px">
-                <BarChart chartData={barChartData} chartOptions={barChartOptions} />
+              <Box h="300px" display="flex" alignItems="center" justifyContent="center">
+                {datosCategorias.length === 0 ? (
+                  <Text color="gray.400" textAlign="center">No hay datos para mostrar</Text>
+                ) : (
+                  <BarChart chartData={barChartData} chartOptions={barChartOptions} />
+                )}
               </Box>
             </Box>
           </div>
@@ -353,7 +570,7 @@ const DashboardNew = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={option.onClick || (() => setSelectedOption(option.id))}
+                onClick={option.onClick}
               >
                 <div className="text-4xl mb-4">{option.icon}</div>
                 <h2 className="text-xl font-semibold text-gray-800 mb-2">
@@ -377,14 +594,26 @@ const DashboardNew = () => {
             // Actualizamos los datos después de subir una factura
             const refreshUserData = async () => {
               try {
+                console.log('Actualizando datos después de subir factura...');
                 const invoices = await invoicesApi.getUserInvoices(user.id);
+                console.log('Facturas obtenidas del servidor:', invoices.length);
+                
+                // Verificamos si hay análisis en las facturas
+                const facturasConAnalisis = invoices.filter(f => f.analysis);
+                console.log('Facturas con análisis:', facturasConAnalisis.length);
+                
+                // Forzamos una actualización completa del estado con un nuevo objeto
+                // para asegurar que React detecte el cambio
                 setUserData({
                   ...userData,
                   total_uploads: invoices.length,
-                  invoices: invoices
+                  invoices: [...invoices], // Creamos un nuevo array para forzar la actualización
+                  last_update: new Date().toISOString() // Añadimos timestamp para forzar actualización
                 });
+                console.log('Dashboard actualizado con nuevas facturas:', invoices.length);
               } catch (error) {
                 console.error('Error refreshing user data:', error);
+                setError('Error al actualizar los datos. Intenta recargar la página.');
               }
             };
             refreshUserData();
@@ -393,7 +622,10 @@ const DashboardNew = () => {
       )}
       
       {showViewModal && (
-        <ViewInvoices onClose={() => setShowViewModal(false)} />
+        <ViewInvoices onClose={() => {
+          setShowViewModal(false);
+          // ... refresco de datos ...
+        }} onDelete={handleDeleteInvoice} />
       )}
     </div>
   );

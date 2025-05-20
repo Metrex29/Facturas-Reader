@@ -10,6 +10,8 @@ import AnonymousUploadPage from "./pages/AnonymousUploadPage";
 import { ChakraProvider, CSSReset } from '@chakra-ui/react';
 // Importamos el tema de Chakra UI para asegurar que se aplique correctamente
 import theme from '../horizon-ui-chakra/src/theme/theme';
+// Importamos React para usar React.Suspense si es necesario
+import React from 'react';
 
 function App() {
   // Envolvemos la aplicación en un bloque try-catch para capturar errores de renderizado
@@ -18,7 +20,12 @@ function App() {
       <ChakraProvider theme={theme}>
         <CSSReset /> {/* Asegura que los estilos de Chakra UI se apliquen correctamente */}
         <AuthProvider>
-          <BrowserRouter>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true
+            }}
+          >
             <div className="flex flex-col min-h-screen">
               <Header />
               <main className="flex-grow">
