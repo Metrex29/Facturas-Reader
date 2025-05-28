@@ -124,7 +124,7 @@ const ViewInvoices = ({ onClose, onDelete }) => {
                   </div>
                   <div className="flex space-x-2">
                     <a
-                      href={`/uploads/${invoice.filename}`}
+                      href={invoice.file_url && invoice.file_url.startsWith('/uploads/') ? `http://localhost:3001${invoice.file_url}` : invoice.file_url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
@@ -156,12 +156,28 @@ const ViewInvoices = ({ onClose, onDelete }) => {
                           {(() => {
                             console.log("Factura:", invoice);
                             let productos = [];
+                            let sumaProductos = 0;
+                            let importeReal = null;
+                            let precioDelNombre = null;
+                            let diferenciaConNombre = null;
                             try {
                               let clean = invoice.analysis
-                                .replace(/```json|```/g, '') // elimina los backticks y el prefijo json
+                                .replace(/```json|```/g, '')
                                 .trim();
                               productos = JSON.parse(clean);
-                              console.log("Análisis IA productos:", productos);
+                              // Calcular suma de productos
+                              sumaProductos = productos.reduce((acc, prod) => acc + (parseFloat(prod.precio || prod.price || 0)), 0);
+                              // Intentar obtener el importe real de la factura
+                              importeReal = parseFloat(invoice.total || invoice.importeReal || invoice.amount || invoice.importe || 0);
+                              if (!importeReal && invoice.validation_info) {
+                                try {
+                                  const validation = JSON.parse(invoice.validation_info);
+                                  if (validation.importeReal) importeReal = validation.importeReal;
+                                  if (validation.precioDelNombre) precioDelNombre = validation.precioDelNombre;
+                                  if (validation.diferenciaConNombre) diferenciaConNombre = validation.diferenciaConNombre;
+                                } catch {}
+                              }
+                              console.log("Análisis IA productos:", productos, "Suma:", sumaProductos, "Importe real:", importeReal);
                             } catch (e) {
                               return (
                                 <tr><td colSpan="3" className="text-red-500">Error al leer análisis IA</td></tr>
@@ -172,13 +188,41 @@ const ViewInvoices = ({ onClose, onDelete }) => {
                                 <tr><td colSpan="3" className="text-gray-500">Sin productos detectados</td></tr>
                               );
                             }
-                            return productos.map((prod, idx) => (
-                              <tr key={idx}>
-                                <td className="px-2 py-1 border">{prod.producto || prod.name || "Sin nombre"}</td>
-                                <td className="px-2 py-1 border">{prod.categoria || prod.category || "Sin categoría"}</td>
-                                <td className="px-2 py-1 border">{(prod.precio || prod.price ? (prod.precio || prod.price) + ' €' : "Sin precio")}</td>
-                              </tr>
-                            ));
+                            // Renderizar productos
+                            return (
+                              <>
+                                {productos.map((prod, index) => (
+                                  <tr key={index} className={prod.producto.includes("Otros") ? "bg-yellow-50" : ""}>
+                                    <td className="px-2 py-1 border">{prod.producto}</td>
+                                    <td className="px-2 py-1 border">{prod.categoria}</td>
+                                    <td className="px-2 py-1 border text-right">{prod.precio?.toFixed(2)} €</td>
+                                  </tr>
+                                ))}
+                                <tr className="bg-gray-50 font-semibold">
+                                  <td colSpan="2" className="px-2 py-1 border text-right">Total productos:</td>
+                                  <td className="px-2 py-1 border text-right">{sumaProductos.toFixed(2)} €</td>
+                                </tr>
+                                {/* Mostrar el importe real de la factura */}
+                                <tr className="bg-green-50 font-semibold">
+                                  <td colSpan="2" className="px-2 py-1 border text-right">Importe real de la factura:</td>
+                                  <td className="px-2 py-1 border text-right">{importeReal ? importeReal.toFixed(2) : 'N/A'} €</td>
+                                </tr>
+                                {precioDelNombre && (
+                                  <>
+                                    <tr className="bg-blue-50">
+                                      <td colSpan="2" className="px-2 py-1 border text-right">Precio del nombre:</td>
+                                      <td className="px-2 py-1 border text-right">{precioDelNombre.toFixed(2)} €</td>
+                                    </tr>
+                                    {diferenciaConNombre && Math.abs(diferenciaConNombre) > 0.01 && (
+                                      <tr className="bg-yellow-50">
+                                        <td colSpan="2" className="px-2 py-1 border text-right">Diferencia:</td>
+                                        <td className="px-2 py-1 border text-right">{diferenciaConNombre.toFixed(2)} €</td>
+                                      </tr>
+                                    )}
+                                  </>
+                                )}
+                              </>
+                            );
                           })()}
                         </tbody>
                       </table>

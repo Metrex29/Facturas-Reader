@@ -61,6 +61,15 @@ async function procesarFactura(req, res) {
   const textoFactura = await extraerTextoPDF(req.file.path);
   console.log('Texto extraído del PDF:', textoFactura);
 
+  // Extraer el precio del nombre del archivo
+  let precioDelNombre = null;
+  const nombreArchivo = req.file.originalname;
+  const matchPrecio = nombreArchivo.match(/(\d+[.,]\d{2})/);
+  if (matchPrecio) {
+    precioDelNombre = parseFloat(matchPrecio[1].replace(',', '.'));
+    console.log('Precio extraído del nombre:', precioDelNombre);
+  }
+
   let analysis = null;
   let analysisError = null;
   let validationInfo = null;
@@ -105,6 +114,7 @@ async function procesarFactura(req, res) {
     'devolución', 'saldo', 'aportación', 'donación', 'recibido', 'vuelto',
     'entregado', 'cliente', 'número', 'nro', 'n°'
   ];
+  
   // Calcular el monto total sumando solo productos válidos
   let montoTotal = 0;
   if (Array.isArray(analysis)) {
@@ -123,11 +133,51 @@ async function procesarFactura(req, res) {
       return acc + precio;
     }, 0);
   }
+
+  // Si hay un precio en el nombre y es diferente al monto total, ajustar la diferencia
+  if (precioDelNombre && Math.abs(precioDelNombre - montoTotal) > 0.01) {
+    const diferencia = +(precioDelNombre - montoTotal).toFixed(2);
+    if (!Array.isArray(analysis)) {
+      analysis = [];
+    }
+
+    // Ordenar productos por precio de mayor a menor
+    analysis.sort((a, b) => {
+      const precioA = parseFloat(a.precio || a.price) || 0;
+      const precioB = parseFloat(b.precio || b.price) || 0;
+      return precioB - precioA;
+    });
+
+    // Ajustar el producto más caro
+    if (analysis.length > 0) {
+      const productoMasCaro = analysis[0];
+      const precioActual = parseFloat(productoMasCaro.precio || productoMasCaro.price) || 0;
+      const nuevoPrecio = +(precioActual + diferencia).toFixed(2);
+      productoMasCaro.precio = nuevoPrecio;
+      montoTotal = precioDelNombre;
+    }
+  }
+
   // Tomar user_id y date del body, o usar valores por defecto
-  const userId = req.body.user_id || 1; // Cambia esto según tu lógica de autenticación
+  const userId = req.body.user_id || 1;
   const fechaFactura = req.body.date ? new Date(req.body.date) : new Date();
-  // Construir la URL del archivo
   const fileUrl = '/uploads/' + req.file.filename;
+
+  // Determinar el importe real de la factura
+  let importeReal = precioDelNombre || null;
+  if (!importeReal && validationInfo && validationInfo.importeReal) {
+    importeReal = validationInfo.importeReal;
+  } else if (!importeReal && req.body.importeReal) {
+    importeReal = parseFloat(req.body.importeReal);
+  } else if (!importeReal && req.body.amount) {
+    importeReal = parseFloat(req.body.amount);
+  } else if (!importeReal) {
+    importeReal = montoTotal;
+  }
+
+  // Asegurar que el importe real sea un número válido
+  importeReal = parseFloat(importeReal) || 0;
+
   // Insertar en la base de datos
   const result = await pool.query(
     `INSERT INTO invoices (
@@ -138,17 +188,24 @@ async function procesarFactura(req, res) {
       file_name,
       analysis,
       pdf_texto,
-      analysis_error
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      analysis_error,
+      validation_info
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
     [
       userId,
       fileUrl,
       fechaFactura,
-      montoTotal,
+      importeReal,
       req.file.filename,
       analysis ? JSON.stringify(analysis) : null,
       textoFactura,
-      analysisError
+      analysisError,
+      JSON.stringify({
+        ...validationInfo,
+        precioDelNombre,
+        diferenciaConNombre: precioDelNombre ? +(precioDelNombre - montoTotal).toFixed(2) : null,
+        importeReal
+      })
     ]
   );
 
@@ -156,7 +213,11 @@ async function procesarFactura(req, res) {
     success: true,
     message: 'Factura subida y analizada correctamente',
     data: result.rows[0],
-    validation: validationInfo
+    validation: {
+      ...validationInfo,
+      precioDelNombre,
+      diferenciaConNombre: precioDelNombre ? +(precioDelNombre - montoTotal).toFixed(2) : null
+    }
   });
 }
 
@@ -302,5 +363,45 @@ async function extraerTextoPDF(filePath) {
   const data = await pdfParse(dataBuffer);
   return data.text;
 }
+
+// Endpoint para obtener gastos agrupados por categoría
+router.get('/categorias/gastos', async (req, res) => {
+  try {
+    // Obtener todas las facturas
+    const result = await pool.query('SELECT analysis FROM invoices');
+    const facturas = result.rows;
+    const gastosPorCategoria = {};
+
+    facturas.forEach(factura => {
+      let productos = [];
+      try {
+        productos = JSON.parse(factura.analysis);
+      } catch (e) {
+        // Si no se puede parsear, ignorar
+        return;
+      }
+      if (!Array.isArray(productos)) return;
+      productos.forEach(producto => {
+        const categoria = producto.categoria || 'Otros';
+        const precio = parseFloat(producto.precio || producto.price) || 0;
+        if (!gastosPorCategoria[categoria]) {
+          gastosPorCategoria[categoria] = 0;
+        }
+        gastosPorCategoria[categoria] += precio;
+      });
+    });
+
+    // Convertir a array de objetos
+    const resultado = Object.entries(gastosPorCategoria).map(([categoria, total]) => ({
+      categoria,
+      total: parseFloat(total.toFixed(2))
+    }));
+
+    res.json(resultado);
+  } catch (err) {
+    console.error('Error al obtener gastos por categoría:', err);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
 
 module.exports = router;

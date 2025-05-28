@@ -68,17 +68,15 @@ function procesarAnalisisFacturas(facturas) {
   // Función para normalizar categorías
   const normalizarCategoria = (categoria) => {
     if (!categoria) return 'Otros';
-    
     const categoriaLower = categoria.toLowerCase().trim();
-    
     // Buscar coincidencias exactas o parciales
     for (const [clave, valor] of Object.entries(categoriasNormalizadas)) {
       if (categoriaLower === clave || categoriaLower.includes(clave)) {
         return valor;
       }
     }
-    
-    return 'Otros'; // Categorizar como 'Otros' si no hay coincidencia
+    // Si no está en la lista, devolver la categoría original (respetando mayúsculas)
+    return categoria.trim();
   };
 
   // Verificar si hay facturas para procesar
@@ -89,37 +87,26 @@ function procesarAnalisisFacturas(facturas) {
 
   // Procesar cada factura
   facturas.forEach((factura, i) => {
-    if (!factura.analysis) {
-      console.log(`Factura ${i} sin análisis, saltando...`);
-      return;
-    }
-    
-    let productos = [];
+    // Obtener el importe real de la factura
+    let importeReal = 0;
     try {
-      // Verificar si el análisis ya es un objeto (puede ocurrir si ya fue parseado)
-      if (typeof factura.analysis === 'object' && factura.analysis !== null) {
-        productos = Array.isArray(factura.analysis) ? factura.analysis : [factura.analysis];
-        console.log(`Factura ${i} ya tiene análisis como objeto con ${productos.length} productos`);
-      } else {
-        // Limpiar el string JSON de la factura
-        let clean = factura.analysis
-          .replace(/```json|```/g, '')
-          .trim();
-        
-        // Intentar parsear el JSON
-        productos = JSON.parse(clean);
-        console.log(`Factura ${i} procesada con ${productos.length} productos`);
+      // Intentar obtener el importe real de diferentes fuentes
+      if (factura.amount) {
+        importeReal = parseFloat(factura.amount);
+      } else if (factura.validation_info) {
+        const validation = JSON.parse(factura.validation_info);
+        if (validation.importeReal) {
+          importeReal = validation.importeReal;
+        } else if (validation.precioDelNombre) {
+          importeReal = validation.precioDelNombre;
+        }
       }
     } catch (e) {
-      console.error(`Error al procesar factura ${i}:`, e);
-      return; // Saltamos esta factura si hay error
+      console.error(`Error al obtener importe real de factura ${i}:`, e);
     }
 
-    // Verificar que productos sea un array
-    if (!Array.isArray(productos)) {
-      console.error(`Factura ${i}: el análisis no es un array válido`);
-      return;
-    }
+    // Sumar al total general
+    gastoTotal += importeReal;
 
     // Obtener fecha de la factura para análisis por mes
     let fechaFactura = new Date();
@@ -132,37 +119,57 @@ function procesarAnalisisFacturas(facturas) {
     }
     const mes = `${fechaFactura.getFullYear()}-${(fechaFactura.getMonth()+1).toString().padStart(2,'0')}`;
 
-    // Procesar cada producto de la factura
-    productos.forEach((prod) => {
-      // Obtener precio unitario y cantidad
-      const precioUnitario = parseFloat(prod.precio_unitario || prod.price || prod.precio || 0);
-      const cantidad = parseFloat(prod.cantidad || 1);
-      let precioTotal = 0;
-      if (!isNaN(precioUnitario) && !isNaN(cantidad)) {
-        precioTotal = precioUnitario * cantidad;
-      } else {
-        // Fallback: intentar con precio/price si no hay unitario
-        const precioValue = parseFloat(prod.precio || prod.price || 0);
-        precioTotal = isNaN(precioValue) ? 0 : precioValue;
+    // Sumar por mes
+    gastosPorMes[mes] = (gastosPorMes[mes] || 0) + importeReal;
+
+    // Procesar productos para categorías si hay análisis
+    if (factura.analysis) {
+      let productos = [];
+      try {
+        if (typeof factura.analysis === 'object' && factura.analysis !== null) {
+          productos = Array.isArray(factura.analysis) ? factura.analysis : [factura.analysis];
+        } else {
+          let clean = factura.analysis.replace(/```json|```/g, '').trim();
+          productos = JSON.parse(clean);
+        }
+      } catch (e) {
+        console.error(`Error al procesar análisis de factura ${i}:`, e);
+        return;
       }
-      if (precioTotal <= 0) return;
-      // Obtener la categoría (puede estar como 'categoria' o 'category')
-      const categoriaValue = prod.categoria || prod.category || 'Otros';
-      // Normalizar la categoría
-      const categoriaNormalizada = normalizarCategoria(categoriaValue);
-      // Sumar por categoría normalizada
-      gastosPorCategoria[categoriaNormalizada] = (gastosPorCategoria[categoriaNormalizada] || 0) + precioTotal;
-      // Sumar al total
-      gastoTotal += precioTotal;
-      // Sumar por mes
-      gastosPorMes[mes] = (gastosPorMes[mes] || 0) + precioTotal;
-      // Análisis combinado por categoría y mes
-      if (!gastosPorCategoriaYMes[mes]) {
-        gastosPorCategoriaYMes[mes] = {};
-      }
-      gastosPorCategoriaYMes[mes][categoriaNormalizada] = 
-        (gastosPorCategoriaYMes[mes][categoriaNormalizada] || 0) + precioTotal;
-    });
+
+      if (!Array.isArray(productos)) return;
+
+      // Calcular la proporción del importe real para cada producto
+      const sumaProductos = productos.reduce((acc, prod) => {
+        const precio = parseFloat(prod.precio || prod.price || 0);
+        return acc + (isNaN(precio) ? 0 : precio);
+      }, 0);
+
+      const factorAjuste = sumaProductos > 0 ? importeReal / sumaProductos : 0;
+
+      // Procesar cada producto
+      productos.forEach((prod) => {
+        const precioOriginal = parseFloat(prod.precio || prod.price || 0);
+        if (isNaN(precioOriginal) || precioOriginal <= 0) return;
+
+        // Ajustar el precio según el importe real
+        const precioAjustado = precioOriginal * factorAjuste;
+        
+        // Obtener y normalizar la categoría
+        const categoriaValue = prod.categoria || prod.category || 'Otros';
+        const categoriaNormalizada = normalizarCategoria(categoriaValue);
+
+        // Sumar por categoría
+        gastosPorCategoria[categoriaNormalizada] = (gastosPorCategoria[categoriaNormalizada] || 0) + precioAjustado;
+
+        // Análisis combinado por categoría y mes
+        if (!gastosPorCategoriaYMes[mes]) {
+          gastosPorCategoriaYMes[mes] = {};
+        }
+        gastosPorCategoriaYMes[mes][categoriaNormalizada] = 
+          (gastosPorCategoriaYMes[mes][categoriaNormalizada] || 0) + precioAjustado;
+      });
+    }
   });
 
   console.log("Análisis completado:", {
@@ -198,21 +205,6 @@ const barChartOptionsBase = {
     row: { opacity: 0.5 },
     column: { opacity: 0.5 },
     padding: { left: 0, right: 0, top: 15, bottom: 15 }
-  },
-  fill: {
-    type: "gradient",
-    gradient: {
-      type: "vertical",
-      shadeIntensity: 1,
-      opacityFrom: 0.7,
-      opacityTo: 0.9,
-      colorStops: [
-        [
-          { offset: 0, color: "#4318FF", opacity: 1 },
-          { offset: 100, color: "rgba(67, 24, 255, 1)", opacity: 0.28 }
-        ]
-      ]
-    }
   },
   plotOptions: { bar: { borderRadius: 10, columnWidth: "40px" } }
 };
@@ -357,9 +349,43 @@ const DashboardNew = () => {
     'Educación': '#FFCE20',
     'Otros': '#A3AED0'
   };
-  
-  // Asignar colores a las categorías
-  const coloresGrafica = categorias.map(cat => coloresCategorias[cat] || '#A3AED0');
+
+  // Paleta de colores pastel para categorías adicionales
+  const pastelPalette = [
+    '#A3AED0', '#B5EAD7', '#FFDAC1', '#E2F0CB', '#C7CEEA', '#FFB7B2', '#B5B9FF', '#F3B0C3', '#B2F7EF', '#FF9AA2',
+    '#FFB347', '#B4F8C8', '#FBE7C6', '#B2A4FF', '#F6DFEB', '#B6E2D3', '#F7D6E0', '#B5EAD7', '#E2F0CB', '#C7CEEA'
+  ];
+
+  // Función para abreviar nombres de categorías
+  const abreviarCategoria = (nombre) => {
+    if (!nombre) return '';
+    const map = {
+      'Frutas y Verduras': 'Frutas/Verd.',
+      'Cereales y Legumbres': 'Cereales/Leg.',
+      'Lácteos y Huevos': 'Lácteos/Huevos',
+      'Alimentación': 'Alim.',
+      'Electrónica': 'Electrón.',
+      'Otros': 'Otros',
+      'Carnes': 'Carnes',
+      'Bebidas': 'Bebidas',
+      'Higiene': 'Higiene',
+      'Hogar': 'Hogar',
+      'Ropa': 'Ropa',
+      'Transporte': 'Transp.',
+      'Ocio': 'Ocio',
+      'Salud': 'Salud',
+      'Educación': 'Educ.'
+    };
+    return map[nombre] || (nombre.length > 14 ? nombre.slice(0, 12) + '.' : nombre);
+  };
+
+  // Abreviar nombres para la gráfica y la leyenda
+  const categoriasAbreviadas = categorias.map(abreviarCategoria);
+
+  // Asignar colores a las categorías, usando la paleta pastel si no está en coloresCategorias
+  const coloresGrafica = categorias.map((cat, idx) =>
+    coloresCategorias[cat] || pastelPalette[idx % pastelPalette.length]
+  );
   
   const barChartData = [
     {
@@ -372,11 +398,11 @@ const DashboardNew = () => {
     ...barChartOptionsBase,
     colors: coloresGrafica,
     xaxis: {
-      categories: categorias.length > 0 ? categorias : ["Sin datos"],
+      categories: categoriasAbreviadas.length > 0 ? categoriasAbreviadas : ["Sin datos"],
       labels: {
         show: true,
-        style: { colors: "#A3AED0", fontSize: "12px", fontWeight: "500" },
-        rotate: -45,
+        style: { colors: "#A3AED0", fontSize: "14px", fontWeight: "500" },
+        rotate: -30,
         rotateAlways: categorias.length > 5
       },
       axisBorder: { show: false },
@@ -387,6 +413,17 @@ const DashboardNew = () => {
       y: {
         formatter: function(value) {
           return value.toFixed(2) + " €";
+        }
+      }
+    },
+    legend: {
+      show: true,
+      labels: {
+        colors: "#222",
+        useSeriesColors: false,
+        formatter: function(val, opts) {
+          // Mostrar nombre abreviado en la leyenda
+          return abreviarCategoria(val);
         }
       }
     },
@@ -552,7 +589,7 @@ const DashboardNew = () => {
             </Box>
             <Box className="bg-white rounded-lg shadow-md p-4">
               <Text className="text-xl font-semibold mb-4">Gastos por Categoría</Text>
-              <Box h="300px" display="flex" alignItems="center" justifyContent="center">
+              <Box h="400px" display="flex" alignItems="center" justifyContent="center" style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
                 {datosCategorias.length === 0 ? (
                   <Text color="gray.400" textAlign="center">No hay datos para mostrar</Text>
                 ) : (

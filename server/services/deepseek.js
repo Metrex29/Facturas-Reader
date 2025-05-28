@@ -62,6 +62,7 @@ function extraerProductosLocal(textoFactura) {
   bloqueProductos = lineasUnidas.join(' ');
 
   // 1. Procesar productos con peso (kg) primero
+  const productosUnicos = new Set();
   const regexPeso = /(\d+)\s*([A-ZÁÉÍÓÚÑa-záéíóúñ0-9 %.,/-]+?)\s*(\d+[.,]\d{3})\s*kg\s*(\d+[.,]\d{2})\s*€\/kg\s*(\d+[.,]\d{2})/g;
   let match;
   while ((match = regexPeso.exec(bloqueProductos)) !== null) {
@@ -76,9 +77,9 @@ function extraerProductosLocal(textoFactura) {
     nombre = nombre.replace(/^[,\s]+/, '');
     if (nombre.length > 40) continue;
     if (!nombre || nombre.length < 2) continue;
-    const clave = `${nombre.toLowerCase()}-${precioTotal}-${cantidad}`;
-    if (productosProcesados.has(clave)) continue;
-    productosProcesados.add(clave);
+    const clave = `${nombre.toLowerCase().replace(/\s+/g, '')}-${precioTotal.toFixed(2)}`;
+    if (productosUnicos.has(clave)) continue;
+    productosUnicos.add(clave);
     if (precioTotal > 0 && precioTotal < 500) {
       const categoria = categorizarProducto(nombre);
       productos.push({ 
@@ -107,9 +108,9 @@ function extraerProductosLocal(textoFactura) {
     if (nombre.length > 40) continue;
     if (!nombre || nombre.length < 2) continue;
     if (nombre.toLowerCase().includes('kg') || nombre.toLowerCase().includes('€/kg')) continue;
-    const clave = `${nombre.toLowerCase()}-${precio}-${cantidad}`;
-    if (productosProcesados.has(clave)) continue;
-    productosProcesados.add(clave);
+    const clave = `${nombre.toLowerCase().replace(/\s+/g, '')}-${precio.toFixed(2)}`;
+    if (productosUnicos.has(clave)) continue;
+    productosUnicos.add(clave);
     if (precio > 0 && precio < 500) {
       const categoria = categorizarProducto(nombre);
       productos.push({ producto: nombre, categoria, cantidad, precio_unitario, precio });
@@ -130,9 +131,9 @@ function extraerProductosLocal(textoFactura) {
     if (nombre.length > 40) continue;
     if (!nombre || nombre.length < 2) continue;
     if (nombre.toLowerCase().includes('kg') || nombre.toLowerCase().includes('€/kg')) continue;
-    const clave = `${nombre.toLowerCase()}-${precio * cantidad}-${cantidad}`;
-    if (productosProcesados.has(clave)) continue;
-    productosProcesados.add(clave);
+    const clave = `${nombre.toLowerCase().replace(/\s+/g, '')}-${(precio * cantidad).toFixed(2)}`;
+    if (productosUnicos.has(clave)) continue;
+    productosUnicos.add(clave);
     if (precio > 0 && precio < 500) {
       const categoria = categorizarProducto(nombre);
       productos.push({ producto: nombre, categoria, cantidad, precio_unitario: precio, precio: precio * cantidad });
@@ -140,16 +141,30 @@ function extraerProductosLocal(textoFactura) {
     }
   }
 
-  // Validar si la suma de productos coincide con el importe total
+  // Al final, recalcula sumaProductos sumando todos los productos
+  sumaProductos = productos.reduce((acc, p) => acc + (parseFloat(p.precio) || 0), 0);
+
+  // Si hay diferencia, añade el ajuste
   if (importeTotal && Math.abs(sumaProductos - importeTotal) > 0.01) {
-    console.warn(`¡Atención! La suma de productos (${sumaProductos.toFixed(2)}€) no coincide con el importe total (${importeTotal.toFixed(2)}€)`);
+    const diferencia = +(importeTotal - sumaProductos).toFixed(2);
+    productos.push({
+      producto: "Ajuste (productos no identificados)",
+      categoria: "Otros",
+      cantidad: 1,
+      precio_unitario: diferencia,
+      precio: diferencia
+    });
+    sumaProductos += diferencia;
   }
+
+  // Redondear sumaProductos
+  sumaProductos = +(sumaProductos).toFixed(2);
 
   return {
     productos: productos,
     sumaTotal: sumaProductos,
     importeReal: importeTotal,
-    diferencia: importeTotal ? Math.abs(sumaProductos - importeTotal) : null
+    diferencia: importeTotal ? +(sumaProductos - importeTotal).toFixed(2) : null
   };
 }
 
@@ -157,17 +172,17 @@ function extraerProductosLocal(textoFactura) {
 function categorizarProducto(nombre) {
   const n = nombre.toLowerCase();
   if (/manzana|banana|plátano|pera|naranja|limón|fruta|verdura|tomate|lechuga|zanahoria|patata|cebolla/.test(n)) return "Frutas y Verduras";
-  if (/pollo|carne|jamon|pavo|ternera|cerdo|embutido|salchicha|lomo|chuleta|bacon/.test(n)) return "Alimentación";
-  if (/pan|boll[eo]|galleta|bizcocho|pastel|tarta|croissant/.test(n)) return "Alimentación";
-  if (/leche|queso|yogur|mantequilla|nata|huevo/.test(n)) return "Alimentación";
-  if (/agua|refresco|zumo|bebida|coca|fanta|sprite|cerveza|vino|licor|ron|whisky|ginebra|vodka|tinto|verano|gaseosa/.test(n)) return "Alimentación";
-  if (/arroz|pasta|macarron|espagueti|fideo|cuscus|lenteja|garbanzo|judia|alubia/.test(n)) return "Alimentación";
-  if (/azucar|sal|aceite|vinagre|especia|salsa|mayonesa|ketchup|mostaza/.test(n)) return "Alimentación";
+  if (/pollo|ternera|cerdo|cordero|carne|chuleta|bistec|solomillo|costilla|lomo|filete|hamburguesa/.test(n)) return "Carnes";
+  if (/pescado|merluza|salmón|atun|atún|bacalao|sardina|anchoa|trucha|marisco|gamba|langostino|calamar|pulpo/.test(n)) return "Pescados y Mariscos";
+  if (/leche|queso|yogur|mantequilla|nata|huevo/.test(n)) return "Lácteos y Huevos";
+  if (/pan|boll[eo]|galleta|bizcocho|pastel|tarta|croissant/.test(n)) return "Panadería y Repostería";
+  if (/arroz|pasta|macarron|espagueti|fideo|cuscus|lenteja|garbanzo|judia|alubia/.test(n)) return "Cereales y Legumbres";
+  if (/azucar|sal|aceite|vinagre|especia|salsa|mayonesa|ketchup|mostaza/.test(n)) return "Condimentos y Salsas";
   if (/suavizante|detergente|limpiador|lejía|lavavajillas|jabón|desinfectante|multiusos|limpieza/.test(n)) return "Higiene";
   if (/papel higienico|servilleta|pañuelo|bastoncillo|algodón/.test(n)) return "Higiene";
   if (/champú|gel|desodorante|crema|loción|maquillaje|afeitar|cuchilla|cepillo|pasta dental|dental|higiene/.test(n)) return "Higiene";
-  if (/gato|perro|mascota|pienso|arena de gatos/.test(n)) return "Otros";
-  if (/cafe|té|infusion|cacao|chocolate/.test(n)) return "Alimentación";
+  if (/gato|perro|mascota|pienso|arena de gatos/.test(n)) return "Mascotas";
+  if (/cafe|té|infusion|cacao|chocolate/.test(n)) return "Bebidas";
   if (/mueble|silla|mesa|sofá|cama|colchón|almohada|hogar|cocina|baño/.test(n)) return "Hogar";
   if (/electrodomestico|microondas|nevera|frigorifico|lavadora|secadora|horno|tostadora|batidora|licuadora|plancha/.test(n)) return "Electrónica";
   if (/camisa|pantalón|falda|vestido|ropa|zapato|zapatilla|bota|calcetín|abrigo|chaqueta|jersey|sudadera|ropa interior/.test(n)) return "Ropa";
