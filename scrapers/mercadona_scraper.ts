@@ -196,7 +196,7 @@ async function main() {
         await scraper.initialize();
 
         let allProducts: MercadonaProduct[] = [];
-        for (let i = 27; i <= 28; i++) {
+        for (let i = 27; i <= 300; i++) {
             const categoryUrl = `https://tienda.mercadona.es/categories/${i}`;
             console.log(`Probando categoría: ${categoryUrl}`);
             try {
