@@ -3,6 +3,8 @@ const express = require('express');
 const cors = require('cors');
 const pool = require('./config/database');
 const bodyParser = require('body-parser');
+const path = require('path');
+const multer = require('multer');
 
 const app = express();
 const port = process.env.PORT || 3001; // Cambiado a puerto 3001 para evitar conflictos
@@ -17,7 +19,6 @@ app.use(bodyParser.json({ limit: MAX_FILE_SIZE }));
 app.use(bodyParser.urlencoded({ limit: MAX_FILE_SIZE, extended: true }));
 
 // Servir archivos estáticos desde la carpeta uploads
-const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Configuración para manejar errores de tamaño de payload
@@ -87,7 +88,8 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    // Traer todos los campos, incluyendo foto_perfil
+    const userResult = await pool.query('SELECT id, email, nombre, foto_perfil, password FROM users WHERE email = $1', [email]);
     if (userResult.rows.length === 0) {
       return res.status(401).json({
         status: 'error',
@@ -106,12 +108,15 @@ app.post('/api/auth/login', async (req, res) => {
     // Simulación de token JWT
     const token = 'jwt_' + Math.random().toString(36).substr(2);
     res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        nombre: user.nombre
-      },
-      token
+      data: {
+        user: {
+          id: user.id,
+          email: user.email,
+          nombre: user.nombre,
+          foto_perfil: user.foto_perfil || null
+        },
+        token
+      }
     });
   } catch (err) {
     console.error('Error en login:', err);
@@ -182,6 +187,92 @@ app.get('/api/test-db', async (req, res) => {
       message: 'Error al conectar con la base de datos',
       error: err.message
     });
+  }
+});
+
+// Endpoint para actualizar datos del usuario
+app.put('/api/users/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { nombre, email } = req.body;
+    const result = await pool.query(
+      'UPDATE users SET nombre = $1, email = $2 WHERE id = $3 RETURNING *',
+      [nombre, email, id]
+    );
+    if (result.rows.length === 0) {
+      res.status(404).json({ message: 'Usuario no encontrado' });
+    } else {
+      res.json(result.rows[0]);
+    }
+  } catch (err) {
+    console.error('Error al actualizar usuario:', err);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// Endpoint para actualizar la contraseña
+app.put('/api/users/:id/password', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { actual, nueva } = req.body;
+    
+    // Verificar contraseña actual
+    const userResult = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    const user = userResult.rows[0];
+    if (user.password !== actual) {
+      return res.status(401).json({ message: 'Contraseña actual incorrecta' });
+    }
+    
+    // Actualizar contraseña
+    const result = await pool.query(
+      'UPDATE users SET password = $1 WHERE id = $2 RETURNING *',
+      [nueva, id]
+    );
+    
+    res.json({ message: 'Contraseña actualizada correctamente' });
+  } catch (err) {
+    console.error('Error al actualizar contraseña:', err);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// Endpoint para subir foto de perfil
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/')
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
+    cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname))
+  }
+});
+const upload = multer({ storage: storage });
+
+app.post('/api/users/:id/foto', upload.single('foto'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!req.file) {
+      return res.status(400).json({ message: 'No se ha subido ningún archivo' });
+    }
+    
+    const fotoPath = '/uploads/' + req.file.filename;
+    const result = await pool.query(
+      'UPDATE users SET foto_perfil = $1 WHERE id = $2 RETURNING *',
+      [fotoPath, id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+    
+    res.json({ foto_perfil: fotoPath });
+  } catch (err) {
+    console.error('Error al subir foto:', err);
+    res.status(500).json({ message: 'Error del servidor' });
   }
 });
 

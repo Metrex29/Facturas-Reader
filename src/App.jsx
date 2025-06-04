@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import Header from "./components/layout/Header";
 import Footer from "./components/layout/Footer";
 import DashboardNew from "./components/dashboard/DashboardNew";
@@ -7,6 +8,7 @@ import Login from "./components/auth/Login";
 import SignUp from "./components/auth/SignUp";
 import Hero from "./components/layout/Hero";
 import AnonymousUploadPage from "./pages/AnonymousUploadPage";
+import AccountPage from "./pages/AccountPage";
 import { ChakraProvider, CSSReset } from '@chakra-ui/react';
 // Importamos el tema de Chakra UI para asegurar que se aplique correctamente
 import theme from '../horizon-ui-chakra/src/theme/theme';
@@ -17,31 +19,34 @@ function App() {
   // Envolvemos la aplicación en un bloque try-catch para capturar errores de renderizado
   try {
     return (
-      <ChakraProvider theme={theme}>
-        <CSSReset /> {/* Asegura que los estilos de Chakra UI se apliquen correctamente */}
+      <ThemeProvider>
         <AuthProvider>
-          <BrowserRouter
-            future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true
-            }}
-          >
-            <div className="flex flex-col min-h-screen">
-              <Header />
-              <main className="flex-grow">
-                <Routes>
-                  <Route path="/" element={<Hero />} />
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/signup" element={<SignUp />} />
-                  <Route path="/dashboard" element={<DashboardNew />} />
-                  <Route path="/upload-anonymous" element={<AnonymousUploadPage />} />
-                </Routes>
-              </main>
-              <Footer />
-            </div>
-          </BrowserRouter>
+          <ChakraProvider theme={theme}>
+            <CSSReset /> {/* Asegura que los estilos de Chakra UI se apliquen correctamente */}
+            <BrowserRouter
+              future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true
+              }}
+            >
+              <div className="flex flex-col min-h-screen">
+                <Header />
+                <main className="flex-grow">
+                  <Routes>
+                    <Route path="/" element={<Hero />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/signup" element={<SignUp />} />
+                    <Route path="/dashboard" element={<DashboardNew />} />
+                    <Route path="/upload-anonymous" element={<AnonymousUploadPage />} />
+                    <Route path="/account" element={<AccountPage />} />
+                  </Routes>
+                </main>
+                <Footer />
+              </div>
+            </BrowserRouter>
+          </ChakraProvider>
         </AuthProvider>
-      </ChakraProvider>
+      </ThemeProvider>
     );
   } catch (error) {
     console.error('Error al renderizar la aplicación:', error);

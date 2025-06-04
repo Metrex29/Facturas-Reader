@@ -6,6 +6,7 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class',
   theme: {
       extend: {
         fontFamily:{
@@ -15,7 +16,10 @@ export default {
           montserrat: ["Montserrat", "sans-serif"],
           outfit: ["Outfit", "sans-serif"],
           manrope: ["Manrope", "sans-serif"]
-        }
+        },
+        colors: {
+          // ... existing colors ...
+        },
       },
     },
     plugins: [],

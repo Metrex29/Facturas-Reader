@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { motion } from 'framer-motion';
+import { Link } from 'react-router-dom';
 // Comentamos temporalmente esta importación hasta tener el proveedor configurado
 // import { PostgresProvider } from '../../../database/providers/PostgresProvider';
 import UploadInvoice from './UploadInvoice';
 import ViewInvoices from './ViewInvoices';
 import { invoicesApi } from '../../services/api/invoices';
+import { motion } from 'framer-motion';
 
 // Importaciones de Chakra UI
 import { Box, Flex, Grid, GridItem, Text, Icon } from '@chakra-ui/react';
@@ -332,8 +333,8 @@ const DashboardNew = () => {
   const { gastosPorCategoria, gastosPorMes, gastoTotal } = datosGraficas;
 
   // Preparar datos para la gráfica de barras (por categoría)
-  const categorias = Object.keys(gastosPorCategoria).sort((a, b) => gastosPorCategoria[b] - gastosPorCategoria[a]);
-  const datosCategorias = categorias.map(cat => parseFloat(gastosPorCategoria[cat].toFixed(2)));
+  const categorias = Array.isArray(Object.keys(gastosPorCategoria)) ? Object.keys(gastosPorCategoria).sort((a, b) => gastosPorCategoria[b] - gastosPorCategoria[a]) : [];
+  const datosCategorias = Array.isArray(categorias) ? categorias.map(cat => parseFloat(gastosPorCategoria[cat]?.toFixed(2) || 0)) : [];
   
   // Colores personalizados para categorías
   const coloresCategorias = {
@@ -380,7 +381,7 @@ const DashboardNew = () => {
   };
 
   // Abreviar nombres para la gráfica y la leyenda
-  const categoriasAbreviadas = categorias.map(abreviarCategoria);
+  const categoriasAbreviadas = Array.isArray(categorias) ? categorias.map(abreviarCategoria) : [];
 
   // Asignar colores a las categorías, usando la paleta pastel si no está en coloresCategorias
   const coloresGrafica = categorias.map((cat, idx) =>
@@ -421,7 +422,7 @@ const DashboardNew = () => {
       labels: {
         colors: "#222",
         useSeriesColors: false,
-        formatter: function(val, opts) {
+        formatter: function(val) {
           // Mostrar nombre abreviado en la leyenda
           return abreviarCategoria(val);
         }
@@ -438,15 +439,15 @@ const DashboardNew = () => {
   };
 
   // Preparar datos para la gráfica de líneas (por mes)
-  const meses = Object.keys(gastosPorMes).sort();
-  const datosMeses = meses.map(mes => parseFloat(gastosPorMes[mes].toFixed(2)));
+  const meses = Array.isArray(Object.keys(gastosPorMes)) ? Object.keys(gastosPorMes).sort() : [];
+  const datosMeses = Array.isArray(meses) ? meses.map(mes => parseFloat(gastosPorMes[mes]?.toFixed(2) || 0)) : [];
   
   // Formatear nombres de meses para mejor visualización
-  const nombresMeses = meses.map(mes => {
+  const nombresMeses = Array.isArray(meses) ? meses.map(mes => {
     const [año, numMes] = mes.split('-');
     const fecha = new Date(parseInt(año), parseInt(numMes) - 1, 1);
     return fecha.toLocaleDateString('es-ES', { month: 'short', year: 'numeric' });
-  });
+  }) : [];
   
   const lineChartData = [
     {
@@ -522,12 +523,12 @@ const DashboardNew = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         {error && (
-          <div className="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-md">
-            <p className="text-red-700 font-medium">{error}</p>
-            <p className="mt-2 text-sm">Intenta recargar la página o verifica que el servidor esté en funcionamiento.</p>
+          <div className="mb-6 p-4 bg-red-50 dark:bg-gray-800 border-l-4 border-red-500 dark:border-red-400 rounded-md">
+            <p className="text-red-700 dark:text-red-300 font-medium">{error}</p>
+            <p className="mt-2 text-sm text-gray-700 dark:text-gray-400">Intenta recargar la página o verifica que el servidor esté en funcionamiento.</p>
           </div>
         )}
         <motion.div
@@ -537,21 +538,32 @@ const DashboardNew = () => {
         >
           <div className="flex items-center mb-8">
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900">
-                Bienvenido, {user.email}
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                Bienvenido, {user.nombre}
               </h1>
-              <p className="mt-2 text-gray-600">
+              <p className="mt-2 text-gray-600 dark:text-gray-300">
                 {userData?.last_login && `Último acceso: ${new Date(userData.last_login).toLocaleDateString()}`}
               </p>
             </div>
-            <div className="bg-purple-100 rounded-full p-3">
-              <span className="text-2xl">{user.email[0].toUpperCase()}</span>
+            <div className="bg-purple-100 dark:bg-purple-900 rounded-full p-3">
+              {user ? (
+                user.foto_perfil ? (
+                  <img
+                    src={`http://localhost:3001${user.foto_perfil}?t=${user.foto_perfil ? new Date().getTime() : ''}`}
+                    alt="Foto de perfil"
+                    className="w-12 h-12 rounded-full object-cover border shadow-sm dark:shadow-none"
+                    style={{ background: '#f3f4f6' }}
+                  />
+                ) : (
+                  <span className="text-2xl text-gray-900 dark:text-white">{user.nombre ? user.nombre[0].toUpperCase() : ''}</span>
+                )
+              ) : null}
             </div>
           </div>
 
           {/* Mini Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-6">
-            <Box>
+            <Box className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-none text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700">
               <MiniStatistics
                 startContent={
                   <Box
@@ -563,35 +575,35 @@ const DashboardNew = () => {
                 }
                 name="Facturas Subidas"
                 value={userData?.total_uploads || "0"}
-                growth="+23%"
+                growth={"+23%"}
               />
             </Box>
-            <Box>
+            <Box className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-none text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700">
               <MiniStatistics
                 name="Gasto Total"
                 value={`${gastoTotal.toFixed(2)} €`}
-                growth="0%"
+                growth={"0%"}
               />
             </Box>
           </div>
 
           {/* Charts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <Box className="bg-white rounded-lg shadow-md p-4">
-              <Text className="text-xl font-semibold mb-4">Evolución de Gastos Mensuales</Text>
+            <Box className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-none p-4 border border-gray-200 dark:border-gray-700">
+              <Text className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Evolución de Gastos Mensuales</Text>
               <Box h="300px" display="flex" alignItems="center" justifyContent="center">
                 {datosMeses.length === 0 ? (
-                  <Text color="gray.400" textAlign="center">No hay datos para mostrar</Text>
+                  <Text color="gray.400" className="dark:text-gray-400" textAlign="center">No hay datos para mostrar</Text>
                 ) : (
                   <LineChart chartData={lineChartData} chartOptions={lineChartOptions} />
                 )}
               </Box>
             </Box>
-            <Box className="bg-white rounded-lg shadow-md p-4">
-              <Text className="text-xl font-semibold mb-4">Gastos por Categoría</Text>
+            <Box className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-none p-4 border border-gray-200 dark:border-gray-700">
+              <Text className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Gastos por Categoría</Text>
               <Box h="400px" display="flex" alignItems="center" justifyContent="center" style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
                 {datosCategorias.length === 0 ? (
-                  <Text color="gray.400" textAlign="center">No hay datos para mostrar</Text>
+                  <Text color="gray.400" className="dark:text-gray-400" textAlign="center">No hay datos para mostrar</Text>
                 ) : (
                   <BarChart chartData={barChartData} chartOptions={barChartOptions} />
                 )}
@@ -602,24 +614,41 @@ const DashboardNew = () => {
           {/* Dashboard Options */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {dashboardOptions.map((option) => (
-              <motion.div
-                key={option.id}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-white rounded-lg shadow-md p-6 cursor-pointer hover:shadow-lg transition-shadow"
-                onClick={option.onClick}
-              >
-                <div className="text-4xl mb-4">{option.icon}</div>
-                <h2 className="text-xl font-semibold text-gray-800 mb-2">
-                  {option.title}
-                </h2>
-                <p className="text-gray-600">
-                  {option.description}
-                </p>
-              </motion.div>
+              option.id === 'settings' ? (
+                <Link to="/account" key={option.id} style={{ textDecoration: 'none' }}>
+                  <motion.div
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-none p-6 cursor-pointer hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700"
+                  >
+                    <div className="text-4xl mb-4">{option.icon}</div>
+                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+                      {option.title}
+                    </h2>
+                    <p className="text-gray-600 dark:text-gray-300">
+                      {option.description}
+                    </p>
+                  </motion.div>
+                </Link>
+              ) : (
+                <motion.div
+                  key={option.id}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-none p-6 cursor-pointer hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700"
+                  onClick={option.onClick}
+                >
+                  <div className="text-4xl mb-4">{option.icon}</div>
+                  <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
+                    {option.title}
+                  </h2>
+                  <p className="text-gray-600 dark:text-gray-300">
+                    {option.description}
+                  </p>
+                </motion.div>
+              )
             ))}
           </div>
-
 
         </motion.div>
       </div>
@@ -659,10 +688,10 @@ const DashboardNew = () => {
       )}
       
       {showViewModal && (
-        <ViewInvoices onClose={() => {
-          setShowViewModal(false);
-          // ... refresco de datos ...
-        }} onDelete={handleDeleteInvoice} />
+        <ViewInvoices 
+          onClose={() => setShowViewModal(false)} 
+          onDelete={handleDeleteInvoice}
+        />
       )}
     </div>
   );

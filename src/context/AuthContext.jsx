@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { auth } from '../lib/auth';
+import axios from 'axios';
 
 const AuthContext = createContext({});
 
@@ -10,8 +11,18 @@ export function AuthProvider({ children }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+    auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user?.id) {
+        // Volver a pedir los datos completos del usuario tras recargar
+        try {
+          const res = await axios.get(`http://localhost:3001/api/users/${session.user.id}`);
+          setUser(res.data);
+        } catch (e) {
+          setUser(session.user); // fallback si falla la petición
+        }
+      } else {
+        setUser(session?.user ?? null);
+      }
       setLoading(false);
     });
 
@@ -54,16 +65,20 @@ export function AuthProvider({ children }) {
           return { error };
         }
         
-        console.log('Datos de usuario recibidos en AuthContext:', userData);
+        let userId = null;
+        if (userData?.session?.user?.id) userId = userData.session.user.id;
+        else if (userData?.user?.id) userId = userData.user.id;
+        else if (userData?.data?.session?.user?.id) userId = userData.data.session.user.id;
         
-        // Manejar múltiples formatos posibles de respuesta
-        if (userData?.session?.user) {
+        if (userId) {
+          // Volver a pedir los datos completos del usuario tras login
+          const res = await axios.get(`http://localhost:3001/api/users/${userId}`);
+          setUser(res.data);
+        } else if (userData?.session?.user) {
           setUser(userData.session.user);
         } else if (userData?.user) {
-          // Formato alternativo de respuesta
           setUser(userData.user);
         } else if (userData?.data?.session?.user) {
-          // Otro formato posible
           setUser(userData.data.session.user);
         } else {
           console.error('Formato de respuesta inesperado en AuthContext:', userData);
@@ -92,6 +107,9 @@ export function AuthProvider({ children }) {
       } finally {
         setLoading(false);
       }
+    },
+    logout: async () => {
+      return value.signOut();
     }
   };
 

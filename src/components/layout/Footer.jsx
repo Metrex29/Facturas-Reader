@@ -1,13 +1,13 @@
 export default function Footer() {
   return (
-    <footer className="bg-white fixed bottom-0 w-full">
+    <footer className="bg-gray-900 text-gray-300 py-6 mt-8 border-t border-gray-700 w-full">
       <div className="mx-auto max-w-7xl px-4 py-2 md:flex md:items-center md:justify-between lg:px-6">
         <div className="flex justify-center space-x-6">
           <a
             href="https://github.com/Metrex29"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-gray-600 hover:text-gray-900"
+            className="text-gray-400 hover:text-white"
           >
             GitHub
           </a>
@@ -15,13 +15,13 @@ export default function Footer() {
             href="https://www.linkedin.com/in/carlos-pic%C3%B3n-4aa40b280/"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-gray-600 hover:text-gray-900"
+            className="text-gray-400 hover:text-white"
           >
             LinkedIn
           </a>
           <a
             href="mailto:carlosraulpiconmosquera@gmail.com"
-            className="text-gray-600 hover:text-gray-900"
+            className="text-gray-400 hover:text-white"
           >
             Email
           </a>
