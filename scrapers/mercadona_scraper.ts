@@ -312,8 +312,12 @@ async function main() {
         await scraper.initialize();
 
         let allProducts: MercadonaProduct[] = [];
+<<<<<<< HEAD
         // la categoria maxima de mercadona es 244
         for (let i = 27; i <= 244; i++) {
+=======
+        for (let i = 27; i <= 300; i++) {
+>>>>>>> c56f4953a02db5f9a0e585570e45bf463c950217
             const categoryUrl = `https://tienda.mercadona.es/categories/${i}`;
             console.log(`Probando categoría: ${categoryUrl}`);
             try {
