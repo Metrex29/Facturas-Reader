@@ -14,6 +14,7 @@ import { ChakraProvider, CSSReset } from '@chakra-ui/react';
 import theme from '../horizon-ui-chakra/src/theme/theme';
 // Importamos React para usar React.Suspense si es necesario
 import React from 'react';
+import MiniTienda from "./components/MiniTienda";
 
 function App() {
   // Envolvemos la aplicación en un bloque try-catch para capturar errores de renderizado
@@ -39,6 +40,7 @@ function App() {
                     <Route path="/dashboard" element={<DashboardNew />} />
                     <Route path="/upload-anonymous" element={<AnonymousUploadPage />} />
                     <Route path="/account" element={<AccountPage />} />
+                    <Route path="/minitienda" element={<MiniTienda />} />
                   </Routes>
                 </main>
                 <Footer />

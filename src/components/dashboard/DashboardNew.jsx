@@ -6,10 +6,10 @@ import { Link } from 'react-router-dom';
 import UploadInvoice from './UploadInvoice';
 import ViewInvoices from './ViewInvoices';
 import { invoicesApi } from '../../services/api/invoices';
-import { motion } from 'framer-motion';
+import MiniTienda from '../MiniTienda';
 
 // Importaciones de Chakra UI
-import { Box, Flex, Grid, GridItem, Text, Icon } from '@chakra-ui/react';
+import { Box, Flex, Grid, GridItem, Text, Icon, HStack, useColorModeValue } from '@chakra-ui/react';
 
 // Importaciones de componentes adaptados de Horizon UI
 import { Card, MiniStatistics, LineChart, BarChart } from './HorizonAdapters';
@@ -188,15 +188,15 @@ function procesarAnalisisFacturas(facturas) {
 }
 
 const barChartOptionsBase = {
-  chart: { toolbar: { show: false } },
+  chart: { toolbar: { show: false }, background: 'transparent' },
   tooltip: { theme: "dark" },
   dataLabels: { enabled: false },
   yaxis: {
     show: true,
-    color: "black",
+    color: "#A3AED0",
     labels: {
       show: true,
-      style: { colors: "#A3AED0", fontSize: "12px", fontWeight: "500" }
+      style: { colors: ["#A3AED0"], fontSize: "12px", fontWeight: "500" }
     }
   },
   grid: {
@@ -207,17 +207,18 @@ const barChartOptionsBase = {
     column: { opacity: 0.5 },
     padding: { left: 0, right: 0, top: 15, bottom: 15 }
   },
-  plotOptions: { bar: { borderRadius: 10, columnWidth: "40px" } }
+  plotOptions: { bar: { borderRadius: 10, columnWidth: "40px" } },
+  background: 'transparent',
 };
 
 const lineChartOptionsBase = {
-  chart: { toolbar: { show: false } },
+  chart: { toolbar: { show: false }, background: 'transparent' },
   tooltip: { theme: "dark" },
   dataLabels: { enabled: false },
   stroke: { curve: "smooth" },
   yaxis: {
     labels: {
-      style: { colors: "#A3AED0", fontSize: "12px", fontWeight: "500" }
+      style: { colors: ["#A3AED0"], fontSize: "12px", fontWeight: "500" }
     }
   },
   legend: { show: false },
@@ -236,7 +237,8 @@ const lineChartOptionsBase = {
     },
     colors: ["#4318FF", "#39B8FF"]
   },
-  colors: ["#4318FF", "#39B8FF"]
+  colors: ["#4318FF", "#39B8FF"],
+  background: 'transparent',
 };
 
 const DashboardNew = () => {
@@ -247,6 +249,12 @@ const DashboardNew = () => {
   const [showViewModal, setShowViewModal] = useState(false);
 
   const [error, setError] = useState(null);
+  const [facturasMinitienda, setFacturasMinitienda] = useState([]);
+
+  const labelColor = useColorModeValue('#222', '#F3F4F6');
+  const gridColor = useColorModeValue('rgba(163, 174, 208, 0.3)', '#222c3c');
+  const borderColorBox = useColorModeValue('#E5E7EB', '#23272F');
+  const borderStyleBox = '1px solid';
 
   useEffect(() => {
     if (!user || !user.id) return;
@@ -283,52 +291,44 @@ const DashboardNew = () => {
     fetchUserData();
   }, [user]);
 
-  const dashboardOptions = [
-    {
-      id: 'upload',
-      title: 'Subir Facturas',
-      description: `Sube tus facturas en PDF ${userData?.total_uploads ? `(Has subido ${userData.total_uploads} facturas)` : ''}`,
-      icon: '📤',
-      onClick: () => setShowUploadModal(true)
-    },
-    {
-      id: 'view',
-      title: 'Ver Facturas',
-      description: 'Visualiza todas tus facturas subidas',
-      icon: '📋',
-      onClick: () => setShowViewModal(true)
-    },
-    {
-      id: 'analyze',
-      title: 'Mi Análisis',
-      description: 'Revisa tus estadísticas personales',
-      icon: '📊'
-    },
-    {
-      id: 'settings',
-      title: 'Mi Cuenta',
-      description: 'Configura tus preferencias personales',
-      icon: '⚙️'
-    }
+  // 1. Cargar facturas de MiniTienda desde localStorage
+  useEffect(() => {
+    const cargarFacturasLocal = () => {
+      const facturasLocal = JSON.parse(localStorage.getItem('facturasMinitienda') || '[]');
+      setFacturasMinitienda(facturasLocal);
+    };
+    cargarFacturasLocal();
+    const handleStorage = (event) => {
+      if (event.key === 'facturasMinitienda') {
+        cargarFacturasLocal();
+      }
+    };
+    const handleCustom = () => cargarFacturasLocal();
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('facturasMinitiendaActualizada', handleCustom);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('facturasMinitiendaActualizada', handleCustom);
+    };
+  }, []);
+
+  // 2. Combinar facturas para gráficas
+  const todasLasFacturas = [
+    ...(userData?.invoices || []),
+    ...facturasMinitienda
   ];
+
+  // 3. Procesar facturas para gráficas
+  useEffect(() => {
+    if (todasLasFacturas.length > 0) {
+      const datosActualizados = procesarAnalisisFacturas(todasLasFacturas);
+      setDatosGraficas(datosActualizados);
+    }
+  }, [userData, facturasMinitienda]);
 
   // Procesar datos reales para las gráficas
   // Usamos un estado separado para los datos procesados para asegurar la actualización de las gráficas
   const [datosGraficas, setDatosGraficas] = useState({ gastosPorCategoria: {}, gastosPorMes: {}, gastoTotal: 0 });
-  
-  // Efecto para procesar los datos cuando userData cambia
-  useEffect(() => {
-    if (userData && userData.invoices) {
-      console.log('Procesando facturas para gráficas:', userData.invoices.length, 'facturas');
-      // Verificar si hay análisis en las facturas
-      const facturasConAnalisis = userData.invoices.filter(f => f.analysis);
-      console.log('Facturas con análisis:', facturasConAnalisis.length);
-      
-      const datosActualizados = procesarAnalisisFacturas(userData.invoices);
-      setDatosGraficas(datosActualizados);
-      console.log('Datos de gráficas actualizados:', datosActualizados);
-    }
-  }, [userData]);
   
   const { gastosPorCategoria, gastosPorMes, gastoTotal } = datosGraficas;
 
@@ -402,7 +402,7 @@ const DashboardNew = () => {
       categories: categoriasAbreviadas.length > 0 ? categoriasAbreviadas : ["Sin datos"],
       labels: {
         show: true,
-        style: { colors: "#A3AED0", fontSize: "14px", fontWeight: "500" },
+        style: { colors: [labelColor], fontSize: "14px", fontWeight: "500" },
         rotate: -30,
         rotateAlways: categorias.length > 5
       },
@@ -420,13 +420,16 @@ const DashboardNew = () => {
     legend: {
       show: true,
       labels: {
-        colors: "#222",
+        colors: [labelColor],
         useSeriesColors: false,
         formatter: function(val) {
-          // Mostrar nombre abreviado en la leyenda
           return abreviarCategoria(val);
         }
       }
+    },
+    grid: {
+      ...barChartOptionsBase.grid,
+      borderColor: gridColor
     },
     plotOptions: {
       ...barChartOptionsBase.plotOptions,
@@ -461,9 +464,17 @@ const DashboardNew = () => {
     xaxis: {
       categories: nombresMeses.length > 0 ? nombresMeses : ["Sin datos"],
       labels: {
-        style: { colors: "#A3AED0", fontSize: "12px", fontWeight: "500" },
+        style: { colors: [labelColor], fontSize: "12px", fontWeight: "500" },
         rotate: -45,
         rotateAlways: meses.length > 4
+      },
+      axisBorder: {
+        show: true,
+        color: gridColor
+      },
+      axisTicks: {
+        show: true,
+        color: gridColor
       }
     },
     tooltip: {
@@ -475,12 +486,16 @@ const DashboardNew = () => {
       },
       x: {
         show: true
+      },
+      style: {
+        fontSize: '12px',
+        fontFamily: 'Helvetica, Arial, sans-serif'
       }
     },
     markers: {
       size: 5,
       colors: ["#4318FF"],
-      strokeColors: "#fff",
+      strokeColors: labelColor,
       strokeWidth: 2,
       hover: {
         size: 7
@@ -491,6 +506,79 @@ const DashboardNew = () => {
       row: {
         colors: ["transparent", "transparent"],
         opacity: 0.5
+      },
+      borderColor: gridColor,
+      strokeDashArray: 5,
+      xaxis: {
+        lines: {
+          show: true
+        }
+      },
+      yaxis: {
+        lines: {
+          show: true
+        }
+      }
+    },
+    chart: {
+      ...lineChartOptionsBase.chart,
+      background: 'transparent',
+      foreColor: labelColor,
+      toolbar: {
+        show: false
+      },
+      animations: {
+        enabled: true,
+        easing: 'easeinout',
+        speed: 800
+      }
+    },
+    yaxis: {
+      ...lineChartOptionsBase.yaxis,
+      labels: {
+        style: { colors: [labelColor], fontSize: "12px", fontWeight: "500" }
+      },
+      axisBorder: {
+        show: true,
+        color: gridColor
+      },
+      axisTicks: {
+        show: true,
+        color: gridColor
+      }
+    },
+    stroke: {
+      ...lineChartOptionsBase.stroke,
+      colors: ["#4318FF"],
+      width: 3,
+      curve: 'smooth'
+    },
+    fill: {
+      ...lineChartOptionsBase.fill,
+      colors: ["#4318FF"],
+      type: 'gradient',
+      gradient: {
+        shade: 'dark',
+        type: 'vertical',
+        shadeIntensity: 0.5,
+        gradientToColors: undefined,
+        inverseColors: true,
+        opacityFrom: 0.8,
+        opacityTo: 0.2
+      }
+    },
+    states: {
+      hover: {
+        filter: {
+          type: 'lighten',
+          value: 0.04
+        }
+      },
+      active: {
+        filter: {
+          type: 'darken',
+          value: 0.88
+        }
       }
     }
   };
@@ -514,6 +602,36 @@ const DashboardNew = () => {
     }
   };
 
+  const dashboardOptions = [
+    {
+      id: 'upload',
+      title: 'Subir Facturas',
+      description: `Sube tus facturas en PDF ${userData?.total_uploads ? `(Has subido ${userData.total_uploads} facturas)` : ''}`,
+      icon: '📤',
+      onClick: () => setShowUploadModal(true)
+    },
+    {
+      id: 'view',
+      title: 'Ver Facturas',
+      description: 'Visualiza todas tus facturas subidas',
+      icon: '📋',
+      onClick: () => setShowViewModal(true)
+    },
+    {
+      id: 'analyze',
+      title: 'Mi MiniTienda (Beta) ',
+      description: 'Simula una compra en una tienda <br><span style="color:#000;"><b>BETA</b></span>',
+      icon: '🛒',
+      link: '/minitienda'
+    },
+    {
+      id: 'settings',
+      title: 'Mi Cuenta',
+      description: 'Configura tus preferencias personales',
+      icon: '⚙️'
+    }
+  ];
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -531,126 +649,206 @@ const DashboardNew = () => {
             <p className="mt-2 text-sm text-gray-700 dark:text-gray-400">Intenta recargar la página o verifica que el servidor esté en funcionamiento.</p>
           </div>
         )}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <div className="flex items-center mb-8">
-            <div className="flex-1">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                Bienvenido, {user.nombre}
-              </h1>
-              <p className="mt-2 text-gray-600 dark:text-gray-300">
-                {userData?.last_login && `Último acceso: ${new Date(userData.last_login).toLocaleDateString()}`}
-              </p>
-            </div>
-            <div className="bg-purple-100 dark:bg-purple-900 rounded-full p-3">
-              {user ? (
-                user.foto_perfil ? (
-                  <img
-                    src={`http://localhost:3001${user.foto_perfil}?t=${user.foto_perfil ? new Date().getTime() : ''}`}
-                    alt="Foto de perfil"
-                    className="w-12 h-12 rounded-full object-cover border shadow-sm dark:shadow-none"
-                    style={{ background: '#f3f4f6' }}
-                  />
-                ) : (
-                  <span className="text-2xl text-gray-900 dark:text-white">{user.nombre ? user.nombre[0].toUpperCase() : ''}</span>
-                )
-              ) : null}
-            </div>
+        <div className="flex items-center mb-8">
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              Bienvenido, {user?.nombre || "Usuario"}
+            </h1>
+            <p className="mt-2 text-gray-600 dark:text-gray-300">
+              {userData?.last_login && `Último acceso: ${new Date(userData.last_login).toLocaleDateString()}`}
+            </p>
           </div>
-
-          {/* Mini Statistics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-6">
-            <Box className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-none text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700">
-              <MiniStatistics
-                startContent={
-                  <Box
-                    className="rounded-full p-3"
-                    style={{ backgroundColor: 'rgba(67, 24, 255, 0.1)' }}
-                  >
-                    <Icon as={ArrowUpIcon} color="brand.500" w={6} h={6} />
-                  </Box>
-                }
-                name="Facturas Subidas"
-                value={userData?.total_uploads || "0"}
-                growth={"+23%"}
-              />
-            </Box>
-            <Box className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-none text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700">
-              <MiniStatistics
-                name="Gasto Total"
-                value={`${gastoTotal.toFixed(2)} €`}
-                growth={"0%"}
-              />
-            </Box>
-          </div>
-
-          {/* Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            <Box className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-none p-4 border border-gray-200 dark:border-gray-700">
-              <Text className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Evolución de Gastos Mensuales</Text>
-              <Box h="300px" display="flex" alignItems="center" justifyContent="center">
-                {datosMeses.length === 0 ? (
-                  <Text color="gray.400" className="dark:text-gray-400" textAlign="center">No hay datos para mostrar</Text>
-                ) : (
-                  <LineChart chartData={lineChartData} chartOptions={lineChartOptions} />
-                )}
-              </Box>
-            </Box>
-            <Box className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-none p-4 border border-gray-200 dark:border-gray-700">
-              <Text className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Gastos por Categoría</Text>
-              <Box h="400px" display="flex" alignItems="center" justifyContent="center" style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
-                {datosCategorias.length === 0 ? (
-                  <Text color="gray.400" className="dark:text-gray-400" textAlign="center">No hay datos para mostrar</Text>
-                ) : (
-                  <BarChart chartData={barChartData} chartOptions={barChartOptions} />
-                )}
-              </Box>
-            </Box>
-          </div>
-
-          {/* Dashboard Options */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {dashboardOptions.map((option) => (
-              option.id === 'settings' ? (
-                <Link to="/account" key={option.id} style={{ textDecoration: 'none' }}>
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-none p-6 cursor-pointer hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700"
-                  >
-                    <div className="text-4xl mb-4">{option.icon}</div>
-                    <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
-                      {option.title}
-                    </h2>
-                    <p className="text-gray-600 dark:text-gray-300">
-                      {option.description}
-                    </p>
-                  </motion.div>
-                </Link>
+          <div className="bg-purple-100 dark:bg-purple-900 rounded-full p-3">
+            {user ? (
+              user.foto_perfil ? (
+                <img
+                  src={`http://localhost:3001${user.foto_perfil}?t=${user.foto_perfil ? new Date().getTime() : ''}`}
+                  alt="Foto de perfil"
+                  className="w-12 h-12 rounded-full object-cover border shadow-sm dark:shadow-none"
+                  style={{ background: '#f3f4f6' }}
+                />
               ) : (
-                <motion.div
-                  key={option.id}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-none p-6 cursor-pointer hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-700"
-                  onClick={option.onClick}
-                >
-                  <div className="text-4xl mb-4">{option.icon}</div>
-                  <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-2">
-                    {option.title}
-                  </h2>
-                  <p className="text-gray-600 dark:text-gray-300">
-                    {option.description}
-                  </p>
-                </motion.div>
+                <span className="text-2xl text-gray-900 dark:text-white">{user?.nombre ? user.nombre[0].toUpperCase() : ''}</span>
               )
-            ))}
+            ) : null}
           </div>
+        </div>
 
-        </motion.div>
+        {/* Mini Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-6">
+          <Box 
+            bg="white" 
+            _dark={{ bg: "#111827" }} 
+            borderRadius="lg" 
+            color="gray.900" 
+            border={borderStyleBox}
+            borderColor={borderColorBox}
+            _hover={{ boxShadow: 'none' }}
+            transition="none"
+          >
+            <MiniStatistics
+              startContent={
+                <Box
+                  className="rounded-full p-3"
+                  style={{ backgroundColor: 'rgba(67, 24, 255, 0.1)' }}
+                >
+                  <Icon as={ArrowUpIcon} color="brand.500" w={6} h={6} />
+                </Box>
+              }
+              name="Facturas Subidas"
+              value={userData?.total_uploads || "0"}
+              growth={"+23%"}
+            />
+          </Box>
+          <Box 
+            bg="white" 
+            _dark={{ bg: "#111827" }} 
+            borderRadius="lg" 
+            color="gray.900" 
+            border={borderStyleBox}
+            borderColor={borderColorBox}
+            _hover={{ boxShadow: 'none' }}
+            transition="none"
+          >
+            <MiniStatistics
+              name="Gasto Total"
+              value={`${gastoTotal.toFixed(2)} €`}
+              growth={"0%"}
+            />
+          </Box>
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <Box 
+            bg="white" 
+            _dark={{ bg: "#0b1437" }} 
+            borderRadius="lg" 
+            p={4}
+            border={borderStyleBox}
+            borderColor={borderColorBox}
+            _hover={{ boxShadow: 'none' }}
+            transition="none"
+          >
+            <Text fontSize="xl" fontWeight="semibold" mb={4} color="gray.900" _dark={{ color: "white" }}>
+              Evolución de Gastos Mensuales
+            </Text>
+            <Box h="300px" display="flex" alignItems="center" justifyContent="center">
+              {datosMeses.length === 0 ? (
+                <Text color="gray.400" _dark={{ color: "gray.400" }} textAlign="center">
+                  No hay datos para mostrar
+                </Text>
+              ) : (
+                <LineChart chartData={lineChartData} chartOptions={lineChartOptions} />
+              )}
+            </Box>
+          </Box>
+          <Box 
+            bg="white" 
+            _dark={{ bg: "#0b1437" }} 
+            borderRadius="lg" 
+            p={4}
+            border={borderStyleBox}
+            borderColor={borderColorBox}
+            _hover={{ boxShadow: 'none' }}
+            transition="none"
+          >
+            <Text fontSize="xl" fontWeight="semibold" mb={4} color="gray.900" _dark={{ color: "white" }}>
+              Gastos por Categoría
+            </Text>
+            <Box h="400px" display="flex" alignItems="center" justifyContent="center" style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
+              {datosCategorias.length === 0 ? (
+                <Text color="gray.400" _dark={{ color: "gray.400" }} textAlign="center">
+                  No hay datos para mostrar
+                </Text>
+              ) : (
+                <BarChart chartData={barChartData} chartOptions={barChartOptions} />
+              )}
+            </Box>
+          </Box>
+        </div>
+
+       
+
+        {/* Dashboard Options */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {dashboardOptions.map((option) => (
+            option.id === 'settings' ? (
+              <Link to="/account" key={option.id} style={{ textDecoration: 'none' }}>
+                <Box
+                  bg="white"
+                  _dark={{ bg: "gray.900" }}
+                  borderRadius="lg"
+                  p={6}
+                  cursor="pointer"
+                  border={borderStyleBox}
+                  borderColor={borderColorBox}
+                  _hover={{ boxShadow: 'none' }}
+                  transition="none"
+                >
+                  <Box fontSize="4xl" mb={4}>{option.icon}</Box>
+                  <Text fontSize="xl" fontWeight="semibold" color="gray.800" _dark={{ color: "white" }} mb={2}>
+                    {option.title}
+                  </Text>
+                  <Text
+                    color="gray.600"
+                    _dark={{ color: "gray.300" }}
+                    dangerouslySetInnerHTML={{ __html: option.description }}
+                  />
+                </Box>
+              </Link>
+            ) : option.link ? (
+              <Link to={option.link} key={option.id} style={{ textDecoration: 'none' }}>
+                <Box
+                  bg="white"
+                  _dark={{ bg: "gray.900" }}
+                  borderRadius="lg"
+                  p={6}
+                  cursor="pointer"
+                  border={borderStyleBox}
+                  borderColor={borderColorBox}
+                  _hover={{ boxShadow: 'none' }}
+                  transition="none"
+                >
+                  <Box fontSize="4xl" mb={4}>{option.icon}</Box>
+                  <Text fontSize="xl" fontWeight="semibold" color="gray.800" _dark={{ color: "white" }} mb={2}>
+                    {option.title}
+                  </Text>
+                  <Text
+                    color="gray.600"
+                    _dark={{ color: "gray.300" }}
+                    dangerouslySetInnerHTML={{ __html: option.description }}
+                  />
+                </Box>
+              </Link>
+            ) : (
+              <Box
+                key={option.id}
+                bg="white"
+                _dark={{ bg: "gray.900" }}
+                borderRadius="lg"
+                p={6}
+                cursor="pointer"
+                border={borderStyleBox}
+                borderColor={borderColorBox}
+                _hover={{ boxShadow: 'none' }}
+                transition="none"
+                onClick={option.onClick}
+              >
+                <Box fontSize="4xl" mb={4}>{option.icon}</Box>
+                <Text fontSize="xl" fontWeight="semibold" color="gray.800" _dark={{ color: "white" }} mb={2}>
+                  {option.title}
+                </Text>
+                <Text
+                  color="gray.600"
+                  _dark={{ color: "gray.300" }}
+                  dangerouslySetInnerHTML={{ __html: option.description }}
+                />
+              </Box>
+            )
+          ))}
+        </div>
+
       </div>
       
       {showUploadModal && (
@@ -691,8 +889,14 @@ const DashboardNew = () => {
         <ViewInvoices 
           onClose={() => setShowViewModal(false)} 
           onDelete={handleDeleteInvoice}
+          invoices={[
+            ...(userData?.invoices || []),
+            ...facturasMinitienda
+          ]}
         />
       )}
+
+
     </div>
   );
 };

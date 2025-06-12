@@ -24,10 +24,8 @@ import {
   PhoneIcon,
   PlayCircleIcon,
 } from "@heroicons/react/20/solid";
-// eslint-disable-next-line no-unused-vars
-import { motion } from "framer-motion";
 import { useAuth } from '../../context/AuthContext';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { FaHome, FaSun, FaMoon } from 'react-icons/fa';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -51,40 +49,9 @@ const callsToAction = [
   { name: "Contact sales", href: "#", icon: PhoneIcon },
 ];
 
-const menuVariants = {
-  open: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      type: "spring",
-      stiffness: 300,
-      damping: 24,
-      staggerChildren: 0.07,
-    },
-  },
-  closed: {
-    opacity: 0,
-    y: -20,
-    transition: {
-      staggerChildren: 0.05,
-      staggerDirection: -1,
-    },
-  },
-};
-
-const itemVariants = {
-  open: {
-    opacity: 1,
-    y: 0,
-    transition: { type: "spring", stiffness: 300, damping: 24 },
-  },
-  closed: { opacity: 0, y: 10 },
-};
-
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const location = useLocation();
   const { isDarkMode, toggleTheme } = useTheme();
 
@@ -94,18 +61,14 @@ export default function Header() {
     return null;
   }
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
   return (
     <header className="bg-white dark:bg-gray-900 transition-colors duration-200">
       <nav
         aria-label="Global"
         className="mx-auto flex max-w-7xl items-center justify-between p-6 lg:px-8"
       >
-        <div className="flex lg:flex-1 items-center gap-4">
+        {/* Izquierda: Logo/Inicio/Perfil */}
+        <div className="flex items-center gap-4 min-w-[200px]">
           <Link to="/dashboard" className="text-blue-700 dark:text-blue-400 font-bold text-lg hover:text-blue-900 dark:hover:text-blue-300 transition">
             Inicio
           </Link>
@@ -124,98 +87,24 @@ export default function Header() {
             ) : null
           )}
         </div>
-        <div className="flex lg:hidden">
-          <button
-            type="button"
-            onClick={() => setMobileMenuOpen(true)}
-            className="-m-2.5 inline-flex items-center justify-center rounded-md p-2.5 text-gray-700 dark:text-gray-200"
-          >
-            <span className="sr-only">Open main menu</span>
-            <Bars3Icon aria-hidden="true" className="size-6" />
-          </button>
-        </div>
-        {user ? (
-          <PopoverGroup className="hidden lg:flex lg:gap-x-12 select-none">
-            <Popover className="relative">
-              {({ open }) => (
-                <>
-                  <PopoverButton className="flex items-center gap-x-1 text-sm/6 font-semibold text-gray-900 dark:text-gray-100">
-                    Analisis
-                    <ChevronDownIcon
-                      aria-hidden="true"
-                      className={`size-5 flex-none text-gray-400 dark:text-gray-300 transition-transform duration-700 ${open ? "rotate-180" : ""}`}
-                    />
-                  </PopoverButton>
-
-                  <PopoverPanel className="absolute top-full -left-8 z-10 mt-3 w-screen max-w-md overflow-hidden rounded-3xl bg-white shadow-lg ring-1 ring-gray-900/5">
-                    <motion.div
-                      initial="closed"
-                      animate={open ? "open" : "closed"}
-                      variants={menuVariants}
-                      className="p-4"
-                    >
-                      {products.map((item) => (
-                        <motion.div
-                          key={item.name}
-                          variants={itemVariants}
-                          className="group relative flex items-center gap-x-6 rounded-lg p-4 text-sm/6 hover:bg-gray-50"
-                        >
-                          <div className="flex size-11 flex-none items-center justify-center rounded-lg bg-gray-50 group-hover:bg-white">
-                            <item.icon
-                              aria-hidden="true"
-                              className="size-6 text-gray-600 group-hover:text-indigo-600"
-                            />
-                          </div>
-                          <div className="flex-auto">
-                            <a
-                              href={item.href}
-                              className="block font-semibold text-gray-900"
-                            >
-                              {item.name}
-                              <span className="absolute inset-0" />
-                            </a>
-                            <p className="mt-1 text-gray-600">
-                              {item.description}
-                            </p>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </motion.div>
-                    <motion.div
-                      variants={menuVariants}
-                      className="grid grid-cols-2 divide-x divide-gray-900/5 bg-gray-50"
-                    >
-                      
-                    </motion.div>
-                  </PopoverPanel>
-                </>
-              )}
-            </Popover>
+        {/* Centro: Links principales centrados */}
+        <div className="flex-1 flex justify-center">
+          <div className="flex items-center gap-x-12">
             <Link to="/dashboard" className="text-sm/6 font-semibold text-gray-900 dark:text-gray-100">Dashboard</Link>
             <Link to="/account" className="text-sm/6 font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">Mi Cuenta</Link>
             <a href="https://github.com/Metrex29" className="text-sm/6 font-semibold text-gray-900 dark:text-gray-100">mi Github</a>
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              aria-label="Cambiar tema"
-            >
-              {isDarkMode ? (
-                <FaSun className="w-5 h-5 text-yellow-500" />
-              ) : (
-                <FaMoon className="w-5 h-5 text-gray-700 dark:text-gray-200" />
-              )}
-            </button>
-            <button onClick={handleLogout} className="text-sm/6 font-semibold text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 transition">
-              Cerrar sesión
-            </button>
-          </PopoverGroup>
-        ) : (
-          <div className="hidden lg:flex lg:flex-1 lg:justify-end">
-            <Link to="/login" className="text-sm/6 font-semibold text-gray-900 dark:text-gray-100">
-              Log in <span aria-hidden="true">&rarr;</span>
-            </Link>
           </div>
-        )}
+        </div>
+        {/* Derecha: Botón de tema */}
+        <div className="flex items-center gap-4 min-w-[100px] justify-end">
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            aria-label="Cambiar tema"
+          >
+            {isDarkMode ? <FaSun /> : <FaMoon />}
+          </button>
+        </div>
       </nav>
       <Dialog
         open={mobileMenuOpen}

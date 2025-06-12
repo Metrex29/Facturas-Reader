@@ -153,7 +153,7 @@ const UploadInvoice = ({ onClose }) => {
                               Fecha: {new Date(invoice.date).toLocaleDateString()}
                             </p>
                             <p className="text-gray-600 dark:text-gray-300">
-                              Monto: ${typeof invoice.amount === 'number' ? invoice.amount.toFixed(2) : (invoice.amount ? Number(invoice.amount).toFixed(2) : 'N/A')}
+                              Monto: €{typeof invoice.amount === 'number' ? invoice.amount.toFixed(2) : (invoice.amount ? Number(invoice.amount).toFixed(2) : 'N/A')}
                             </p>
                             {invoice.description && (
                               <p className="text-gray-600 dark:text-gray-400 text-sm">

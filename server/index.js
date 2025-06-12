@@ -12,6 +12,14 @@ const port = process.env.PORT || 3001; // Cambiado a puerto 3001 para evitar con
 // Middleware
 app.use(cors());
 
+// Ruta básica para la raíz
+app.get('/', (req, res) => {
+  res.json({
+    status: 'success',
+    message: 'Servidor de FacturasIA funcionando correctamente'
+  });
+});
+
 // Configuración para manejar archivos grandes
 const MAX_FILE_SIZE = '20mb'; // Aumentamos el límite a 20MB para dar margen
 app.use(express.json({ limit: MAX_FILE_SIZE }));
@@ -275,6 +283,12 @@ app.post('/api/users/:id/foto', upload.single('foto'), async (req, res) => {
     res.status(500).json({ message: 'Error del servidor' });
   }
 });
+
+// Importar rutas de productos
+const productsRoutes = require('./routes/products');
+
+// Usar las rutas de productos
+app.use('/api', productsRoutes);
 
 // Iniciar servidor
 app.listen(port, () => {

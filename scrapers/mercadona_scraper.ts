@@ -1,6 +1,10 @@
 import puppeteer, { Browser, Page } from 'puppeteer';
 import fs from 'fs';
 import path from 'path';
+import dotenv from 'dotenv';
+
+// Cargar variables de entorno
+dotenv.config();
 
 interface MercadonaProduct {
     name: string;
@@ -8,12 +12,20 @@ interface MercadonaProduct {
     image: string;
     description: string;
     category: string;
+    productCategory?: string;
+}
+
+interface ProductCategory {
+    name: string;
+    description: string;
 }
 
 class MercadonaScraper {
     private browser: Browser | null = null;
     private page: Page | null = null;
+    private products: MercadonaProduct[] = [];
     private readonly baseUrl = 'https://tienda.mercadona.es/';
+    private readonly DEEPSEEK_API_KEY: string = process.env.DEEPSEEK_API_KEY || '';
 
     public getPage(): Page | null {
         return this.page;
@@ -112,11 +124,27 @@ class MercadonaScraper {
 
         try {
             console.log(`Navegando a categoría: ${categoryUrl}`);
-            await this.page.goto(categoryUrl, { waitUntil: 'networkidle0', timeout: 60000 });
+            await this.page.goto(categoryUrl, { 
+                waitUntil: 'networkidle0', 
+                timeout: 30000 
+            });
             
+            // Verificar si estamos en una página de error
+            const currentUrl = this.page.url();
+            if (currentUrl.includes('/not-found') || currentUrl.includes('/error')) {
+                console.log(`Página de error detectada: ${currentUrl}`);
+                return [];
+            }
+
             console.log('Esperando a que los productos se carguen...');
-            await this.page.waitForSelector('div[data-testid="product-cell"]', { timeout: 30000 });
-            console.log('Productos cargados');
+            try {
+                await this.page.waitForSelector('div[data-testid="product-cell"]', { 
+                    timeout: 10000 
+                });
+            } catch (error) {
+                console.log('No se encontraron productos en esta categoría');
+                return [];
+            }
 
             console.log('Iniciando scroll automático...');
             await this.autoScroll();
@@ -126,9 +154,7 @@ class MercadonaScraper {
             const products = await this.page.evaluate(() => {
                 const productElements = document.querySelectorAll('div[data-testid="product-cell"]');
                 return Array.from(productElements).map(product => {
-                    // Nombre en h4[data-testid="product-cell-name"]
                     const nameElement = product.querySelector('h4[data-testid="product-cell-name"]');
-                    // Precio en p[data-testid="product-price"]
                     const priceElement = product.querySelector('p[data-testid="product-price"]');
                     const imageElement = product.querySelector('img');
                     return {
@@ -136,12 +162,32 @@ class MercadonaScraper {
                         price: priceElement?.textContent?.trim() || '',
                         image: imageElement?.getAttribute('src') || '',
                         category: window.location.href,
-                        description: ''
+                        description: '',
+                        productCategory: ''
                     };
                 });
             });
 
-            console.log(`Se extrajeron ${products.length} productos`);
+            console.log(`Se encontraron ${products.length} productos en la categoría`);
+
+            // Categorizar toda la categoría de una vez
+            if (products.length > 0) {
+                try {
+                    const categoryName = await this.categorizeCategory(products);
+                    console.log(`Categoría asignada: ${categoryName}`);
+                    // Aplicar la categoría a todos los productos
+                    products.forEach(product => {
+                        product.productCategory = categoryName;
+                    });
+                } catch (error) {
+                    console.error('Error al categorizar la categoría:', error);
+                    products.forEach(product => {
+                        product.productCategory = 'Otros';
+                    });
+                }
+            }
+
+            this.products = products;
             return products;
         } catch (error) {
             console.error('Error scraping products:', error);
@@ -152,22 +198,92 @@ class MercadonaScraper {
     private async autoScroll() {
         if (!this.page) return;
         
-        await this.page.evaluate(async () => {
-            await new Promise<void>((resolve) => {
-                let totalHeight = 0;
-                const distance = 100;
-                const timer = setInterval(() => {
-                    const scrollHeight = document.body.scrollHeight;
-                    window.scrollBy(0, distance);
-                    totalHeight += distance;
+        try {
+            await this.page.evaluate(async () => {
+                await new Promise<void>((resolve) => {
+                    let totalHeight = 0;
+                    const distance = 100;
+                    const timer = setInterval(() => {
+                        const scrollHeight = document.body.scrollHeight;
+                        window.scrollBy(0, distance);
+                        totalHeight += distance;
 
-                    if (totalHeight >= scrollHeight) {
-                        clearInterval(timer);
-                        resolve();
-                    }
-                }, 100);
+                        if (totalHeight >= scrollHeight) {
+                            clearInterval(timer);
+                            resolve();
+                        }
+                    }, 100);
+                });
             });
-        });
+        } catch (error) {
+            console.error('Error durante el scroll:', error);
+        }
+    }
+
+    private async categorizeCategory(products: MercadonaProduct[]): Promise<string> {
+        try {
+            if (!this.DEEPSEEK_API_KEY) {
+                console.warn('No se encontró la API key de DeepSeek. Usando categoría por defecto.');
+                return 'Otros';
+            }
+
+            // Tomar los primeros 5 productos como muestra
+            const sampleProducts = products.slice(0, 5).map(p => p.name).join(', ');
+            
+            const prompt = `Categoriza la siguiente sección de productos de Mercadona en una de estas categorías: 
+            - Lácteos y derivados
+            - Carnes y embutidos
+            - Pescados y mariscos
+            - Frutas y verduras
+            - Panadería y bollería
+            - Bebidas y refrescos
+            - Snacks y aperitivos
+            - Congelados
+            - Conservas
+            - Cereales y desayunos
+            - Dulces y chocolates
+            - Limpieza y hogar
+            - Higiene y cuidado personal
+            - Otros
+
+            Productos de ejemplo: ${sampleProducts}
+            Total de productos en la categoría: ${products.length}
+        
+
+            Responde SOLO con el nombre de la categoría más apropiada.`;
+            const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.DEEPSEEK_API_KEY}`
+                },
+                body: JSON.stringify({
+                    model: 'deepseek-chat',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'Eres un experto en categorización de productos de supermercado.'
+                        },
+                        {
+                            role: 'user',
+                            content: prompt
+                        }
+                    ],
+                    temperature: 0.3,
+                    max_tokens: 50
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error en la API de DeepSeek: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+            return data.choices[0].message.content.trim();
+        } catch (error) {
+            console.error('Error al categorizar categoría:', error);
+            return 'Otros';
+        }
     }
 
     async saveToJson(products: MercadonaProduct[], filename: string) {
@@ -196,7 +312,8 @@ async function main() {
         await scraper.initialize();
 
         let allProducts: MercadonaProduct[] = [];
-        for (let i = 27; i <= 28; i++) {
+        // la categoria maxima de mercadona es 244
+        for (let i = 27; i <= 244; i++) {
             const categoryUrl = `https://tienda.mercadona.es/categories/${i}`;
             console.log(`Probando categoría: ${categoryUrl}`);
             try {

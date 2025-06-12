@@ -3,30 +3,32 @@ import { useAuth } from '../../context/AuthContext';
 import { invoicesApi } from '../../services/api/invoices';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const ViewInvoices = ({ onClose, onDelete }) => {
+const ViewInvoices = ({ onClose, onDelete, invoices: propInvoices }) => {
   const { user } = useAuth();
-  const [invoices, setInvoices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [invoices, setInvoices] = useState(propInvoices || []);
   const modalRef = useRef();
   const [showConfirm, setShowConfirm] = useState(false);
   const [invoiceToDelete, setInvoiceToDelete] = useState(null);
 
-  useEffect(() => {
-    const fetchInvoices = async () => {
-      try {
-        const invoices = await invoicesApi.getUserInvoices(user.id);
-        setInvoices(invoices);
-      } catch (err) {
-        console.error('Error fetching invoices:', err);
-        setError('Error al cargar las facturas');
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Separar facturas de MiniTienda y reales
+  const minitiendaInvoices = invoices.filter(inv => inv.productos && !inv.file_url);
+  const realInvoices = invoices.filter(inv => inv.file_url);
 
-    fetchInvoices();
-  }, [user]);
+  useEffect(() => {
+    if (propInvoices) {
+      setInvoices(propInvoices);
+    } else {
+      const fetchInvoices = async () => {
+        try {
+          const invoices = await invoicesApi.getUserInvoices(user.id);
+          setInvoices(invoices);
+        } catch (err) {
+          console.error('Error fetching invoices:', err);
+        }
+      };
+      fetchInvoices();
+    }
+  }, [user, propInvoices]);
 
   // Cerrar con Escape
   useEffect(() => {
@@ -44,21 +46,6 @@ const ViewInvoices = ({ onClose, onDelete }) => {
     }
   };
 
-  const handleViewPDF = async (invoice) => {
-    try {
-      console.log('Attempting to view invoice PDF:', invoice);
-      
-      // Abrir el PDF en una nueva pestaña usando la URL completa del archivo
-      if (invoice.file_url) {
-        window.open(`http://localhost:3001${invoice.file_url}`, '_blank');
-      } else {
-        setError('No se encontró la URL del archivo para esta factura');}
-    } catch (err) {
-      console.error('View error:', err);
-      setError('Error al abrir el PDF: ' + err.message);
-    }
-  };
-
   const handleAskDelete = (invoice) => {
     setInvoiceToDelete(invoice);
     setShowConfirm(true);
@@ -67,13 +54,25 @@ const ViewInvoices = ({ onClose, onDelete }) => {
   const handleConfirmDelete = async () => {
     if (!invoiceToDelete) return;
     try {
-      await invoicesApi.deleteInvoice(invoiceToDelete.id);
-      setInvoices(invoices.filter(inv => inv.id !== invoiceToDelete.id));
-      setShowConfirm(false);
-      setInvoiceToDelete(null);
-      if (onDelete) onDelete(invoiceToDelete.id);
+      if (invoiceToDelete.file_url) {
+        // Factura real: borrar del backend
+        await invoicesApi.deleteInvoice(invoiceToDelete.id);
+        setInvoices(invoices.filter(inv => inv.id !== invoiceToDelete.id));
+        setShowConfirm(false);
+        setInvoiceToDelete(null);
+        if (onDelete) onDelete(invoiceToDelete.id);
+      } else {
+        // Factura MiniTienda: borrar de localStorage
+        const facturasLocal = JSON.parse(localStorage.getItem('facturasMinitienda') || '[]');
+        const nuevasFacturas = facturasLocal.filter(f => f.id !== invoiceToDelete.id);
+        localStorage.setItem('facturasMinitienda', JSON.stringify(nuevasFacturas));
+        setInvoices(invoices.filter(inv => inv.id !== invoiceToDelete.id));
+        setShowConfirm(false);
+        setInvoiceToDelete(null);
+        window.dispatchEvent(new Event('facturasMinitiendaActualizada'));
+        if (onDelete) onDelete(invoiceToDelete.id);
+      }
     } catch (err) {
-      setError('Error al borrar la factura');
       setShowConfirm(false);
       setInvoiceToDelete(null);
     }
@@ -112,13 +111,6 @@ const ViewInvoices = ({ onClose, onDelete }) => {
     );
   };
 
-  // Ordenar facturas por fecha descendente antes de renderizarlas
-  const sortedInvoices = [...invoices].sort((a, b) => {
-    const fechaA = new Date(a.date);
-    const fechaB = new Date(b.date);
-    return fechaB - fechaA;
-  });
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onMouseDown={handleBackdropClick}>
       <AnimatePresence>
@@ -140,144 +132,188 @@ const ViewInvoices = ({ onClose, onDelete }) => {
             </button>
           </div>
 
-          {loading ? (
-            <div className="flex justify-center items-center min-h-[200px]">
-              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-purple-500"></div>
-            </div>
-          ) : error ? (
-            <div className="flex items-center gap-2 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-              <svg className="w-6 h-6 text-red-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12A9 9 0 1 1 3 12a9 9 0 0 1 18 0Z" /></svg>
-              <span>{error}</span>
-            </div>
-          ) : invoices.length === 0 ? (
-            <div className="text-center text-gray-500">
-              No tienes facturas subidas aún
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {sortedInvoices.map((invoice) => (
-                <div key={invoice.id} className="border rounded-lg p-4">
-                  {renderValidationWarning(invoice)}
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h3 className="font-semibold">{invoice.original_name}</h3>
-                      <p className="text-sm text-gray-500">
-                        Subida el {invoice.date ? (isNaN(new Date(invoice.date)) ? "Fecha no disponible" : new Date(invoice.date).toLocaleDateString()) : "Fecha no disponible"}
-                      </p>
+          {/* Sección facturas reales */}
+          {realInvoices.length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-2">Facturas subidas</h3>
+              <div className="space-y-4">
+                {realInvoices.map((invoice) => (
+                  <div key={invoice.id} className="border rounded-lg p-4">
+                    {renderValidationWarning(invoice)}
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="font-semibold">{invoice.original_name}</h3>
+                        <p className="text-sm text-gray-500">
+                          Subida el {invoice.date ? (isNaN(new Date(invoice.date)) ? "Fecha no disponible" : new Date(invoice.date).toLocaleDateString()) : "Fecha no disponible"}
+                        </p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <a
+                          href={invoice.file_url && invoice.file_url.startsWith('/uploads/') ? `http://localhost:3001${invoice.file_url}` : invoice.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        >
+                          Ver PDF
+                        </a>
+                        <button
+                          onClick={() => handleAskDelete(invoice)}
+                          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <a
-                        href={invoice.file_url && invoice.file_url.startsWith('/uploads/') ? `http://localhost:3001${invoice.file_url}` : invoice.file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                      >
-                        Ver PDF
-                      </a>
-                      <button
-                        onClick={() => handleAskDelete(invoice)}
-                        className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                      >
-                        ✕
-                      </button>
-                    </div>
+                    {/* Mostrar análisis de productos si existe */}
+                    {invoice.analysis && (
+                      <div className="mt-2">
+                        <p className="font-semibold mb-1 text-purple-700">Productos extraídos por IA:</p>
+                        <div className="overflow-x-auto">
+                          <table className="min-w-full text-sm border">
+                            <thead>
+                              <tr className="bg-gray-100">
+                                <th className="px-2 py-1 border">Producto</th>
+                                <th className="px-2 py-1 border">Categoría</th>
+                                <th className="px-2 py-1 border">Precio</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(() => {
+                                console.log("Factura:", invoice);
+                                let productos = [];
+                                let sumaProductos = 0;
+                                let importeReal = null;
+                                let precioDelNombre = null;
+                                let diferenciaConNombre = null;
+                                try {
+                                  let clean = invoice.analysis
+                                    .replace(/```json|```/g, '')
+                                    .trim();
+                                  productos = JSON.parse(clean);
+                                  // Calcular suma de productos
+                                  sumaProductos = productos.reduce((acc, prod) => acc + (parseFloat(prod.precio || prod.price || 0)), 0);
+                                  // Intentar obtener el importe real de la factura
+                                  importeReal = parseFloat(invoice.total || invoice.importeReal || invoice.amount || invoice.importe || 0);
+                                  if (!importeReal && invoice.validation_info) {
+                                    try {
+                                      const validation = typeof invoice.validation_info === 'string'
+                                        ? JSON.parse(invoice.validation_info)
+                                        : invoice.validation_info;
+                                      if (validation.importeReal) importeReal = validation.importeReal;
+                                      if (validation.precioDelNombre) precioDelNombre = validation.precioDelNombre;
+                                      if (validation.diferenciaConNombre) diferenciaConNombre = validation.diferenciaConNombre;
+                                    } catch {}
+                                  }
+                                  console.log("Análisis IA productos:", productos, "Suma:", sumaProductos, "Importe real:", importeReal);
+                                } catch (e) {
+                                  return (
+                                    <tr><td colSpan="3" className="text-red-500">Error al leer análisis IA</td></tr>
+                                  );
+                                }
+                                if (!Array.isArray(productos) || productos.length === 0) {
+                                  return (
+                                    <tr><td colSpan="3" className="text-gray-500">Sin productos detectados</td></tr>
+                                  );
+                                }
+                                // Renderizar productos
+                                return (
+                                  <>
+                                    {productos.map((prod, index) => (
+                                      <tr key={index} className={prod.producto.includes("Otros") ? "bg-yellow-50" : ""}>
+                                        <td className="px-2 py-1 border">{prod.producto}</td>
+                                        <td className="px-2 py-1 border">{prod.categoria}</td>
+                                        <td className="px-2 py-1 border text-right">{prod.precio?.toFixed(2)} €</td>
+                                      </tr>
+                                    ))}
+                                    <tr className="bg-gray-50 font-semibold">
+                                      <td colSpan="2" className="px-2 py-1 border text-right">Total productos:</td>
+                                      <td className="px-2 py-1 border text-right">{sumaProductos.toFixed(2)} €</td>
+                                    </tr>
+                                    {/* Mostrar el importe real de la factura */}
+                                    <tr className="bg-green-50 font-semibold">
+                                      <td colSpan="2" className="px-2 py-1 border text-right">Importe real de la factura:</td>
+                                      <td className="px-2 py-1 border text-right">{importeReal ? importeReal.toFixed(2) : 'N/A'} €</td>
+                                    </tr>
+                                    {precioDelNombre && (
+                                      <>
+                                        <tr className="bg-blue-50">
+                                          <td colSpan="2" className="px-2 py-1 border text-right">Precio del nombre:</td>
+                                          <td className="px-2 py-1 border text-right">{precioDelNombre.toFixed(2)} €</td>
+                                        </tr>
+                                        {diferenciaConNombre && Math.abs(diferenciaConNombre) > 0.01 && (
+                                          <tr className="bg-yellow-50">
+                                            <td colSpan="2" className="px-2 py-1 border text-right">Diferencia:</td>
+                                            <td className="px-2 py-1 border text-right">{diferenciaConNombre.toFixed(2)} €</td>
+                                          </tr>
+                                        )}
+                                      </>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  {/* Mostrar análisis de productos si existe */}
-                  {invoice.analysis && (
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Sección facturas MiniTienda */}
+          {minitiendaInvoices.length > 0 && (
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-2 text-teal-700">Facturas MiniTienda</h3>
+              <div className="space-y-4">
+                {minitiendaInvoices.map((invoice) => (
+                  <div key={invoice.id} className="border rounded-lg p-4 bg-teal-50">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h3 className="font-semibold">Factura MiniTienda</h3>
+                        <p className="text-sm text-gray-500">
+                          Generada el {invoice.date ? (isNaN(new Date(invoice.date)) ? "Fecha no disponible" : new Date(invoice.date).toLocaleDateString()) : "Fecha no disponible"}
+                        </p>
+                        <p className="text-sm text-gray-700 font-bold">Total: {invoice.total} €</p>
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleAskDelete(invoice)}
+                          className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                    {/* Mostrar productos */}
                     <div className="mt-2">
-                      <p className="font-semibold mb-1 text-purple-700">Productos extraídos por IA:</p>
+                      <p className="font-semibold mb-1 text-teal-700">Productos:</p>
                       <div className="overflow-x-auto">
                         <table className="min-w-full text-sm border">
                           <thead>
                             <tr className="bg-gray-100">
                               <th className="px-2 py-1 border">Producto</th>
-                              <th className="px-2 py-1 border">Categoría</th>
                               <th className="px-2 py-1 border">Precio</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {(() => {
-                              console.log("Factura:", invoice);
-                              let productos = [];
-                              let sumaProductos = 0;
-                              let importeReal = null;
-                              let precioDelNombre = null;
-                              let diferenciaConNombre = null;
-                              try {
-                                let clean = invoice.analysis
-                                  .replace(/```json|```/g, '')
-                                  .trim();
-                                productos = JSON.parse(clean);
-                                // Calcular suma de productos
-                                sumaProductos = productos.reduce((acc, prod) => acc + (parseFloat(prod.precio || prod.price || 0)), 0);
-                                // Intentar obtener el importe real de la factura
-                                importeReal = parseFloat(invoice.total || invoice.importeReal || invoice.amount || invoice.importe || 0);
-                                if (!importeReal && invoice.validation_info) {
-                                  try {
-                                    const validation = typeof invoice.validation_info === 'string'
-                                      ? JSON.parse(invoice.validation_info)
-                                      : invoice.validation_info;
-                                    if (validation.importeReal) importeReal = validation.importeReal;
-                                    if (validation.precioDelNombre) precioDelNombre = validation.precioDelNombre;
-                                    if (validation.diferenciaConNombre) diferenciaConNombre = validation.diferenciaConNombre;
-                                  } catch {}
-                                }
-                                console.log("Análisis IA productos:", productos, "Suma:", sumaProductos, "Importe real:", importeReal);
-                              } catch (e) {
-                                return (
-                                  <tr><td colSpan="3" className="text-red-500">Error al leer análisis IA</td></tr>
-                                );
-                              }
-                              if (!Array.isArray(productos) || productos.length === 0) {
-                                return (
-                                  <tr><td colSpan="3" className="text-gray-500">Sin productos detectados</td></tr>
-                                );
-                              }
-                              // Renderizar productos
-                              return (
-                                <>
-                                  {productos.map((prod, index) => (
-                                    <tr key={index} className={prod.producto.includes("Otros") ? "bg-yellow-50" : ""}>
-                                      <td className="px-2 py-1 border">{prod.producto}</td>
-                                      <td className="px-2 py-1 border">{prod.categoria}</td>
-                                      <td className="px-2 py-1 border text-right">{prod.precio?.toFixed(2)} €</td>
-                                    </tr>
-                                  ))}
-                                  <tr className="bg-gray-50 font-semibold">
-                                    <td colSpan="2" className="px-2 py-1 border text-right">Total productos:</td>
-                                    <td className="px-2 py-1 border text-right">{sumaProductos.toFixed(2)} €</td>
-                                  </tr>
-                                  {/* Mostrar el importe real de la factura */}
-                                  <tr className="bg-green-50 font-semibold">
-                                    <td colSpan="2" className="px-2 py-1 border text-right">Importe real de la factura:</td>
-                                    <td className="px-2 py-1 border text-right">{importeReal ? importeReal.toFixed(2) : 'N/A'} €</td>
-                                  </tr>
-                                  {precioDelNombre && (
-                                    <>
-                                      <tr className="bg-blue-50">
-                                        <td colSpan="2" className="px-2 py-1 border text-right">Precio del nombre:</td>
-                                        <td className="px-2 py-1 border text-right">{precioDelNombre.toFixed(2)} €</td>
-                                      </tr>
-                                      {diferenciaConNombre && Math.abs(diferenciaConNombre) > 0.01 && (
-                                        <tr className="bg-yellow-50">
-                                          <td colSpan="2" className="px-2 py-1 border text-right">Diferencia:</td>
-                                          <td className="px-2 py-1 border text-right">{diferenciaConNombre.toFixed(2)} €</td>
-                                        </tr>
-                                      )}
-                                    </>
-                                  )}
-                                </>
-                              );
-                            })()}
+                            {invoice.productos.map((prod, idx) => (
+                              <tr key={idx}>
+                                <td className="px-2 py-1 border">{prod.name}</td>
+                                <td className="px-2 py-1 border text-right">{prod.price} €</td>
+                              </tr>
+                            ))}
                           </tbody>
                         </table>
                       </div>
                     </div>
-                  )}
-                </div>
-              ))}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
+
           {/* Modal de confirmación */}
           <AnimatePresence>
             {showConfirm && (
