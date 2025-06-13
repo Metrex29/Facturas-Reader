@@ -7,6 +7,10 @@ import UploadInvoice from './UploadInvoice';
 import ViewInvoices from './ViewInvoices';
 import { invoicesApi } from '../../services/api/invoices';
 import MiniTienda from '../MiniTienda';
+import { Button } from "../ui/Button";
+// import authImage from "../../assets/images/auth_image.svg";
+// import { motion } from "framer-motion";
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 
 // Importaciones de Chakra UI
 import { Box, Flex, Grid, GridItem, Text, Icon, HStack, useColorModeValue } from '@chakra-ui/react';
@@ -255,6 +259,13 @@ const DashboardNew = () => {
   const gridColor = useColorModeValue('rgba(163, 174, 208, 0.3)', '#222c3c');
   const borderColorBox = useColorModeValue('#E5E7EB', '#23272F');
   const borderStyleBox = '1px solid';
+
+  // Colores para tarjetas y textos principales
+  const cardBg = useColorModeValue("white", "#111827");
+  const cardText = useColorModeValue("gray.900", "white");
+  const chartBg = useColorModeValue("white", "#0b1437");
+  const chartText = useColorModeValue("gray.900", "white");
+  const colorGray400 = useColorModeValue("gray.400", "gray.400");
 
   useEffect(() => {
     if (!user || !user.id) return;
@@ -677,10 +688,9 @@ const DashboardNew = () => {
         {/* Mini Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mb-6">
           <Box 
-            bg="white" 
-            _dark={{ bg: "#111827" }} 
+            bg={cardBg}
+            color={cardText}
             borderRadius="lg" 
-            color="gray.900" 
             border={borderStyleBox}
             borderColor={borderColorBox}
             _hover={{ boxShadow: 'none' }}
@@ -701,10 +711,9 @@ const DashboardNew = () => {
             />
           </Box>
           <Box 
-            bg="white" 
-            _dark={{ bg: "#111827" }} 
+            bg={cardBg}
+            color={cardText}
             borderRadius="lg" 
-            color="gray.900" 
             border={borderStyleBox}
             borderColor={borderColorBox}
             _hover={{ boxShadow: 'none' }}
@@ -721,8 +730,8 @@ const DashboardNew = () => {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           <Box 
-            bg="white" 
-            _dark={{ bg: "#0b1437" }} 
+            bg={chartBg}
+            color={chartText}
             borderRadius="lg" 
             p={4}
             border={borderStyleBox}
@@ -730,12 +739,12 @@ const DashboardNew = () => {
             _hover={{ boxShadow: 'none' }}
             transition="none"
           >
-            <Text fontSize="xl" fontWeight="semibold" mb={4} color="gray.900" _dark={{ color: "white" }}>
+            <Text fontSize="xl" fontWeight="semibold" mb={4} color={chartText}>
               Evolución de Gastos Mensuales
             </Text>
             <Box h="300px" display="flex" alignItems="center" justifyContent="center">
               {datosMeses.length === 0 ? (
-                <Text color="gray.400" _dark={{ color: "gray.400" }} textAlign="center">
+                <Text color={colorGray400} textAlign="center">
                   No hay datos para mostrar
                 </Text>
               ) : (
@@ -744,8 +753,8 @@ const DashboardNew = () => {
             </Box>
           </Box>
           <Box 
-            bg="white" 
-            _dark={{ bg: "#0b1437" }} 
+            bg={chartBg}
+            color={chartText}
             borderRadius="lg" 
             p={4}
             border={borderStyleBox}
@@ -753,12 +762,12 @@ const DashboardNew = () => {
             _hover={{ boxShadow: 'none' }}
             transition="none"
           >
-            <Text fontSize="xl" fontWeight="semibold" mb={4} color="gray.900" _dark={{ color: "white" }}>
+            <Text fontSize="xl" fontWeight="semibold" mb={4} color={chartText}>
               Gastos por Categoría
             </Text>
             <Box h="400px" display="flex" alignItems="center" justifyContent="center" style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
               {datosCategorias.length === 0 ? (
-                <Text color="gray.400" _dark={{ color: "gray.400" }} textAlign="center">
+                <Text color={colorGray400} textAlign="center">
                   No hay datos para mostrar
                 </Text>
               ) : (

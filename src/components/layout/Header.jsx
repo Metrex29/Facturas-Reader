@@ -102,7 +102,7 @@ export default function Header() {
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             aria-label="Cambiar tema"
           >
-            {isDarkMode ? <FaSun /> : <FaMoon />}
+            {isDarkMode ? <FaSun color="#FFD600" /> : <FaMoon />}
           </button>
         </div>
       </nav>

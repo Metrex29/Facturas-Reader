@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/Button';
-import authImage from '../../assets/images/auth_image.svg'
 import { motion } from 'framer-motion';
+import authImage from '../../assets/images/auth_image.svg';
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -68,8 +69,8 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center -mt-20">
-      <div className="h-[500px] flex gap-16">
+    <div className="min-h-[calc(100vh-96px)] flex flex-col items-center justify-center">
+      <div className="h-[500px] flex gap-16 items-center justify-center">
         <motion.div
           initial={{ x: '100%', opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
@@ -155,7 +156,7 @@ const Login = () => {
           <div className="rounded-lg bg-indigo-100 hidden lg:flex items-center justify-center" style={{ height: '500px', width: '500px' }}>
             <div
               className="w-full h-4/5 bg-contain bg-center bg-no-repeat"
-              style={{ backgroundImage: "url(" + authImage + ")" }}
+              style={{ backgroundImage: `url(${authImage})` }}
             />
           </div>
         </motion.div>

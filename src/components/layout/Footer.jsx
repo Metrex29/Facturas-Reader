@@ -1,6 +1,6 @@
-export default function Footer() {
+export default function Footer({ sticky = false }) {
   return (
-    <footer className="bg-gray-900 text-gray-300 py-6 mt-8 border-t border-gray-700 w-full">
+    <footer className={`bg-gray-900 text-gray-300 py-6 border-t border-gray-700 w-full${sticky ? ' sticky bottom-0 left-0 z-50' : ''}`}>
       <div className="mx-auto max-w-7xl px-4 py-2 md:flex md:items-center md:justify-between lg:px-6">
         <div className="flex justify-center space-x-6">
           <a

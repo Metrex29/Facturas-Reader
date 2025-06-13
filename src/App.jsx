@@ -15,6 +15,30 @@ import theme from '../horizon-ui-chakra/src/theme/theme';
 // Importamos React para usar React.Suspense si es necesario
 import React from 'react';
 import MiniTienda from "./components/MiniTienda";
+import { useLocation } from 'react-router-dom';
+
+function AppRoutes() {
+  const location = useLocation();
+  const stickyFooterRoutes = ['/login', '/signup'];
+  const isStickyFooter = stickyFooterRoutes.includes(location.pathname);
+  return (
+    <div className="flex flex-col min-h-screen">
+      <Header />
+      <main className="flex-grow">
+        <Routes>
+          <Route path="/" element={<Hero />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<SignUp />} />
+          <Route path="/dashboard" element={<DashboardNew />} />
+          <Route path="/upload-anonymous" element={<AnonymousUploadPage />} />
+          <Route path="/account" element={<AccountPage />} />
+          <Route path="/minitienda" element={<MiniTienda />} />
+        </Routes>
+      </main>
+      <Footer sticky={isStickyFooter} />
+    </div>
+  );
+}
 
 function App() {
   // Envolvemos la aplicación en un bloque try-catch para capturar errores de renderizado
@@ -24,27 +48,8 @@ function App() {
         <AuthProvider>
           <ChakraProvider theme={theme}>
             <CSSReset /> {/* Asegura que los estilos de Chakra UI se apliquen correctamente */}
-            <BrowserRouter
-              future={{
-                v7_startTransition: true,
-                v7_relativeSplatPath: true
-              }}
-            >
-              <div className="flex flex-col min-h-screen">
-                <Header />
-                <main className="flex-grow">
-                  <Routes>
-                    <Route path="/" element={<Hero />} />
-                    <Route path="/login" element={<Login />} />
-                    <Route path="/signup" element={<SignUp />} />
-                    <Route path="/dashboard" element={<DashboardNew />} />
-                    <Route path="/upload-anonymous" element={<AnonymousUploadPage />} />
-                    <Route path="/account" element={<AccountPage />} />
-                    <Route path="/minitienda" element={<MiniTienda />} />
-                  </Routes>
-                </main>
-                <Footer />
-              </div>
+            <BrowserRouter>
+              <AppRoutes />
             </BrowserRouter>
           </ChakraProvider>
         </AuthProvider>
